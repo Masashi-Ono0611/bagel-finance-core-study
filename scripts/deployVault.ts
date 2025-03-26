@@ -76,6 +76,7 @@ export async function run(provider: NetworkProvider) {
     const baskets = await getBaskets(ui);
 
     // 3.3 Vaultのデプロイ
+    // DeDust TON Vaultアドレスは、DeDustのメインプールアドレスで固定
     const vault = provider.open(
         Vault.createFromConfig(
             {
