@@ -5,11 +5,15 @@ import { getJettonWalletAddr } from '../utils/Common';
 
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui();
+    
+    // 1. Select network first to ensure correct client configuration
+    const network = await ui.choose('Which network do you want to use?', ['mainnet', 'testnet'], (v) => v);
+    const tonClient = getTonClient(network as 'mainnet' | 'testnet');
+
+    // 2. Get vault address and fetch data
     const vaultAddr = await ui.inputAddress('Input vault address: ');
     const vault = provider.open(Vault.createFromAddress(vaultAddr));
     const res = await vault.getVaultData();
-    const network = await ui.choose('Which network do you want to use?', ['mainnet', 'testnet'], (v) => v);
-    const tonClient = getTonClient(network as 'mainnet' | 'testnet');
     const newBaskets = await Promise.all(
         res.baskets.map(async (basket) => ({
             weight: basket.weight,
