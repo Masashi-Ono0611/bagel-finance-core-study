@@ -1,0 +1,25 @@
+;; Vault
+int op::deposit() asm "0x3a8f7c12 PUSHINT";
+int op::change_vault_data() asm "0xf1b32984 PUSHINT";
+int op::send_admin_message() asm "0x78d5e3af PUSHINT";
+int op::change_code_and_data() asm "0xc4a0912f PUSHINT";
+int op::change_admin() asm "3 PUSHINT";
+int op::change_content() asm "4 PUSHINT";
+;; DeDust
+int op::dedust_ton_swap() asm "0xea06185d PUSHINT";
+int op::dedust_jetton_swap() asm "0xe3a0d482 PUSHINT";
+
+int er::not_admin() asm "73 PUSHINT";
+int er::unauthorized_burn() asm "74 PUSHINT";
+int er::discovery_fee_not_matched() asm "75 PUSHINT";
+;; Vault
+int er::invalid_deposit_body() asm "400 PUSHINT";
+int er::min_exchange_amount() asm "401 PUSHINT";
+int er::invalid_ton_amount() asm "402 PUSHINT";
+int er::not_enough_gas() asm "403 PUSHINT";
+int er::non_basket_token() asm "404 PUSHINT";
+int er::invalid_vault_data() asm "405 PUSHINT";
+
+int er::unexpected() asm "999 PUSHINT";
+
+int er::wrong_op() asm "0xffff PUSHINT";

@@ -1,0 +1,413 @@
+#include "imports/stdlib.fc";
+#include "jetton/params.fc";
+#include "jetton/op-codes.fc";
+#include "jetton/discovery-params.fc";
+#include "jetton/jetton-utils.fc";
+#include "vault/codes.fc";
+#include "vault/storage.fc";
+#include "vault/utils.fc";
+
+const int GAS_PER_SWAP = 100000000;
+const int GAS_PER_MINT_SEND = 50000000;
+const int MIN_EXCHANGE_AMOUNT = 1000000000;
+const int MAX_COINS = 1329227995784915872903807060280344575;
+const int INDEX_UNIT = 1000000000;
+
+() recv_internal(int balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    if (in_msg_body.slice_empty?()) { ;; ignore empty messages
+        return ();
+    }
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    if (flags & 1) { ;; ignore all bounced messages
+        return ();
+    }
+
+    slice sender_address = cs~load_msg_addr();
+    cs~load_msg_addr(); ;; skip dst
+    cs~load_coins(); ;; skip value
+    cs~skip_bits(1); ;; skip extracurrency collection
+    cs~load_coins(); ;; skip ihr_fee
+    int fwd_fee = muldiv(cs~load_coins(), 3, 2); ;; we use message fwd_fee for estimation of forward_payload costs
+
+    int op = in_msg_body~load_uint(32);
+    int query_id = in_msg_body~load_uint(64);
+
+    load_storage();
+
+    if (op == op::deposit()) {
+        ;; check total TON amount
+        int gas_per_basket = GAS_PER_SWAP + GAS_PER_MINT_SEND;
+        int gas = gas_per_basket * storage::num_baskets + gas_deposit(storage::num_baskets);
+        int exchange_ton = msg_value - gas;
+        throw_unless(er::min_exchange_amount(), exchange_ton >= MIN_EXCHANGE_AMOUNT);
+        ;; check each TON amount
+        int total_swap_amount = 0;
+        cell dict_swap = new_dict();
+        int i = 0;
+        while (i < storage::num_baskets) {
+            throw_unless(er::invalid_deposit_body(), ~ in_msg_body.slice_empty?()); ;; throw if there is no TON amount
+            int swap_amount = in_msg_body~load_coins();
+            total_swap_amount += swap_amount;
+            throw_unless(er::invalid_ton_amount(), total_swap_amount <= exchange_ton);
+            dict_swap~udict_set_builder(8, i, begin_cell().store_coins(swap_amount));
+            i += 1;
+        }
+        throw_unless(er::invalid_deposit_body(), in_msg_body.slice_empty?()); ;; throw if there is extra TON amount
+        ;; swap and send to vault each baskets
+        int i = 0;
+        while (i < storage::num_baskets) {
+            (slice slice_swap, int found_swap) = dict_swap.udict_get?(8, i);
+            throw_unless(er::unexpected(), found_swap);
+            int swap_amount = slice_swap~load_coins();
+            (cell cell_baskets, int found_baskets) = storage::dict_baskets.udict_get_ref?(8, i);
+            throw_unless(er::unexpected(), found_baskets);
+            slice  slice_baskets = cell_baskets.begin_parse();
+            slice_baskets~load_coins(); ;; weight
+            slice_baskets~load_msg_addr(); ;; jetton wallet address
+            cell dedust = slice_baskets~load_ref();
+            slice slice_dedust = dedust.begin_parse();
+            slice dedust_pool_address = slice_dedust~load_msg_addr();
+            swap_dedust_ton(
+                query_id,
+                swap_amount,
+                gas_per_basket,
+                dedust_pool_address,
+                sender_address
+            );
+            i += 1;
+        }
+        send_excesses(query_id, sender_address, msg_value - total_swap_amount - gas, 2);
+        return ();
+    }
+
+    if (op == op::transfer_notification()) {
+        ;; check input TON amount
+        throw_unless(
+            er::not_enough_gas(),
+            msg_value >= GAS_PER_MINT_SEND + gas_transfer_notification_complete(storage::num_baskets)
+        );
+        ;; check if the sender address matches any basket jetton wallet addresses stored in the dictionary
+        int basket_idx = -1;
+        int i = 0;
+        while (i < storage::num_baskets) {
+            (cell data_baskets, int found_baskets) = storage::dict_baskets.udict_get_ref?(8, i);
+            throw_unless(er::invalid_vault_data(), found_baskets);
+            slice slice_baskets = data_baskets.begin_parse();
+            slice_baskets~load_coins(); ;; weight
+            slice jetton_wallet_address = slice_baskets~load_msg_addr();
+            if (equal_slices(jetton_wallet_address, sender_address)) {
+                basket_idx = i;
+            }
+            i += 1;
+        }
+        throw_unless(er::non_basket_token(), basket_idx >= 0);
+
+        int amount_jetton = in_msg_body~load_coins();
+        slice user_address = in_msg_body~load_msg_addr(); ;; address which sent jetton (should be user or DeDust vault address)
+        cell custom_payload = in_msg_body~load_maybe_ref();
+        ;; get user address from payload when DeDust vault sent jetton
+        if (~ cell_null?(custom_payload)) {
+            slice payload_slice = custom_payload.begin_parse();
+            user_address = payload_slice~load_msg_addr();
+        }
+
+        ;; store for excesses
+        storage::dict_excesses~udict_set_builder(64, query_id, begin_cell().store_slice(user_address));
+
+        cell dict_balances = new_dict();
+        ;; get tmp balances from storage 
+        (slice slice_waitings, int found_waitings) = storage::dict_waitings.udict_get?(
+            256,
+            slice_hash(user_address)
+        );
+        if (found_waitings) {
+            dict_balances = slice_waitings~load_dict();
+        }
+
+        ;; save the amount of received jetton (key: basket idx, value: amount of jetton)
+        (cell cell_balances, int found_balances) = dict_balances.udict_get_ref?(
+            8,
+            basket_idx
+        );
+        int current_balance = 0;
+        if (found_balances) {
+            slice slice_balances = cell_balances.begin_parse();
+            current_balance += slice_balances~load_coins();
+        }
+        dict_balances~udict_set_ref(
+            8,
+            basket_idx,
+            begin_cell().store_coins(current_balance + amount_jetton).end_cell()
+        );
+
+        ;; check all basket tokens
+        ;; calculate mint amount if there are all basket tokens
+        ;; end if there are lacking basket tokens
+        int mint_amount = MAX_COINS;
+        int mint_idx = -1;
+        int i = 0;
+        while (i < storage::num_baskets) {
+            (cell cell_baskets, int found_baskets) = storage::dict_baskets.udict_get_ref?(8, i);
+            throw_unless(er::invalid_vault_data(), found_baskets);
+            slice slice_baskets = cell_baskets.begin_parse();
+            int weight = slice_baskets~load_coins();
+            (cell cell_balances, int found_balances) = dict_balances.udict_get_ref?(8, i);
+            if (found_balances) {
+                ;; if jetton exist in user tmp balances,
+                ;; calculate mint amount by received_balance * jetton_weight / index_unit (1,000,000,000)
+                slice slice_balances = cell_balances.begin_parse();
+                int balance = slice_balances~load_coins();
+                int tmp_mint_amount = muldiv(balance, INDEX_UNIT, weight);
+                if (tmp_mint_amount < mint_amount) {
+                    mint_amount = tmp_mint_amount;
+                    mint_idx = i;
+                }
+            } else {
+                ;; if any jetton doesn't exist in tmp balances,
+                ;; end after saving current user tmp balances to waiting list
+                storage::dict_waitings~udict_set_builder(
+                    256,
+                    slice_hash(user_address),
+                    begin_cell().store_dict(dict_balances)
+                );
+                save_storage();
+                send_excesses(
+                    query_id,
+                    user_address,
+                    msg_value - GAS_PER_MINT_SEND - gas_transfer_notification(),
+                    2
+                );
+                return ();
+            }
+            i += 1;
+        }
+
+        ;; if mint_amount > 0
+        if (mint_amount > 0) {
+            mint_index(
+                query_id,
+                user_address,
+                storage::jetton_wallet_code,
+                GAS_PER_MINT_SEND,
+                mint_amount
+            );
+            storage::total_supply += mint_amount;
+            int i = 0;
+            while (i < storage::num_baskets) {
+                if (i != mint_idx) {
+                    (cell cell_baskets, int found_baskets) = storage::dict_baskets.udict_get_ref?(8, i);
+                    throw_unless(er::invalid_vault_data(), found_baskets);
+                    slice slice_baskets = cell_baskets.begin_parse();
+                    int weight = slice_baskets~load_coins();
+                    slice jetton_wallet_address = slice_baskets~load_msg_addr();
+                    (cell cell_balances, int found_balances) = dict_balances.udict_get_ref?(8, i);
+                    slice slice_balances = cell_balances.begin_parse();
+                    int balance = slice_balances~load_coins();
+                    int store_amount = muldivc(mint_amount, weight, INDEX_UNIT);
+                    int extra_amount = balance - store_amount;
+                    if (extra_amount > 0) {
+                        send_jetton(
+                            query_id,
+                            jetton_wallet_address,
+                            GAS_PER_MINT_SEND,
+                            extra_amount,
+                            user_address
+                        );
+                    }
+                }
+                i += 1;
+            }
+            storage::dict_waitings~udict_delete?(256, slice_hash(user_address));
+        }
+
+        save_storage();
+        send_excesses(
+            query_id,
+            user_address,
+            msg_value - GAS_PER_MINT_SEND - gas_transfer_notification_complete(storage::num_baskets),
+            2
+        );
+        return ();
+    }
+
+    if (op == op::excesses()) {
+        (slice slice_excesses, int found_excesses) = storage::dict_excesses.udict_get?(64, query_id);
+        if (found_excesses) {
+            slice user_address = slice_excesses~load_msg_addr();
+            send_excesses(query_id, user_address, msg_value - gas_excesses(), 2);
+            storage::dict_excesses~udict_delete?(64, query_id);
+            save_storage();
+        }
+        return ();
+    }
+
+    if (op == op::burn_notification()) {
+        int jetton_amount = in_msg_body~load_coins();
+        slice from_address = in_msg_body~load_msg_addr();
+        throw_unless(
+            er::unauthorized_burn(),
+            equal_slices(calculate_user_jetton_wallet_address(from_address, my_address(), storage::jetton_wallet_code), sender_address)
+        );
+        storage::total_supply -= jetton_amount;
+        save_storage();
+
+        ;; check input TON amount
+        int gas_per_basket = GAS_PER_SWAP + GAS_PER_MINT_SEND;
+        int gas = gas_per_basket * storage::num_baskets;
+        throw_unless(er::not_enough_gas(), msg_value >= gas + gas_burn_notification(storage::num_baskets));
+        int i = 0;
+        while (i < storage::num_baskets) {
+            (cell cell_baskets, int found_baskets) = storage::dict_baskets.udict_get_ref?(8, i);
+            throw_unless(er::invalid_vault_data(), found_baskets);
+            slice slice_baskets = cell_baskets.begin_parse();
+            int weight = slice_baskets~load_coins();
+            slice jetton_wallet_address = slice_baskets~load_msg_addr();
+            cell dedust = slice_baskets~load_ref();
+            slice slice_dedust = dedust.begin_parse();
+            slice dedust_pool_address = slice_dedust~load_msg_addr();
+            slice dedust_vault_address = slice_dedust~load_msg_addr();
+            int swap_amount = muldiv(jetton_amount, weight, INDEX_UNIT);
+            swap_dedust_jetton(
+                query_id,
+                jetton_wallet_address,
+                gas_per_basket,
+                swap_amount,
+                dedust_vault_address,
+                GAS_PER_SWAP,
+                dedust_pool_address,
+                from_address
+            );
+            i += 1;
+        }
+
+        slice response_address = in_msg_body~load_msg_addr();
+        if (response_address.preload_uint(2) != 0) {
+            send_excesses(
+                query_id,
+                response_address,
+                msg_value - gas - gas_burn_notification(storage::num_baskets),
+                2
+            );
+        }
+        return ();
+    }
+
+    if (op == op::change_vault_data()) {
+        throw_unless(er::not_admin(), equal_slices(sender_address, storage::admin_address));
+        storage::stopped = in_msg_body~load_bool();
+        storage::num_baskets = in_msg_body~load_uint(8);
+        storage::dedust_ton_vault_address = in_msg_body~load_msg_addr();
+        storage::dict_baskets = in_msg_body~load_dict();
+        save_storage();
+        return ();
+    }
+
+    if (op == op::send_admin_message()) {
+        throw_unless(er::not_admin(), equal_slices(sender_address, storage::admin_address));
+        cell msg_cell = in_msg_body~load_ref();
+        int send_mode = in_msg_body~load_uint(8);
+        send_raw_message(msg_cell, send_mode);
+        return ();
+    }
+
+    if (op == op::change_code_and_data()) {
+        throw_unless(er::not_admin(), equal_slices(sender_address, storage::admin_address));
+        cell code_cell = in_msg_body~load_ref();
+        cell data_cell = in_msg_body~load_ref();
+        set_code(code_cell);
+        set_data(data_cell);
+        return ();
+    }
+
+    if (op == op::change_admin()) {
+        throw_unless(er::not_admin(), equal_slices(sender_address, storage::admin_address));
+        storage::admin_address = in_msg_body~load_msg_addr();
+        save_storage();
+        return ();
+    }
+
+    if (op == op::change_content()) {
+        throw_unless(er::not_admin(), equal_slices(sender_address, storage::admin_address));
+        storage::content = in_msg_body~load_ref();
+        save_storage();
+        return ();
+    }
+
+    if (op == op::mint()) {
+        throw_unless(73, equal_slices(sender_address, storage::admin_address));
+        slice to_address = in_msg_body~load_msg_addr();
+        int amount = in_msg_body~load_coins();
+        cell master_msg = in_msg_body~load_ref();
+        slice master_msg_cs = master_msg.begin_parse();
+        master_msg_cs~skip_bits(32 + 64); ;; op + query_id
+        int jetton_amount = master_msg_cs~load_coins();
+        mint_tokens(to_address, storage::jetton_wallet_code, amount, master_msg);
+        storage::total_supply += jetton_amount;
+        save_storage();
+        return ();
+    }
+
+    if (op == op::provide_wallet_address()) {
+        throw_unless(er::discovery_fee_not_matched(), msg_value > fwd_fee + provide_address_gas_consumption());
+
+        slice owner_address = in_msg_body~load_msg_addr();
+        int include_address? = in_msg_body~load_uint(1);
+
+        cell included_address = include_address?
+            ? begin_cell().store_slice(owner_address).end_cell()
+            : null();
+
+        var msg = begin_cell()
+            .store_uint(0x18, 6)
+            .store_slice(sender_address)
+            .store_coins(0)
+            .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+            .store_uint(op::take_wallet_address(), 32)
+            .store_uint(query_id, 64);
+
+        if (is_resolvable?(owner_address)) {
+            msg = msg.store_slice(calculate_user_jetton_wallet_address(owner_address, my_address(), storage::jetton_wallet_code));
+        } else {
+            msg = msg.store_uint(0, 2); ;; addr_none
+        }
+        send_raw_message(msg.store_maybe_ref(included_address).end_cell(), 64);
+        return ();
+    }
+
+    throw(er::wrong_op());
+}
+
+(int, int, slice, cell, cell) get_jetton_data() method_id {
+    load_storage();
+    return (storage::total_supply, -1, storage::admin_address, storage::content, storage::jetton_wallet_code);
+}
+
+slice get_wallet_address(slice admin_address) method_id {
+    load_storage();
+    return calculate_user_jetton_wallet_address(
+        admin_address,
+        my_address(),
+        storage::jetton_wallet_code
+    );
+}
+
+(int, int, slice, cell) get_vault_data() method_id {
+    load_storage();
+    return (
+        storage::stopped,
+        storage::num_baskets,
+        storage::dedust_ton_vault_address,
+        storage::dict_baskets
+    );
+}
+
+cell get_waitings() method_id {
+    load_storage();
+    return storage::dict_waitings;
+}
+
+cell get_excesses() method_id {
+    load_storage();
+    return storage::dict_excesses;
+}

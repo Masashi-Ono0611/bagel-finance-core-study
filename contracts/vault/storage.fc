@@ -1,0 +1,46 @@
+global int storage::total_supply;
+global slice storage::admin_address;
+global cell storage::content;
+global cell storage::jetton_wallet_code;
+
+global int storage::stopped;
+global int storage::num_baskets;
+global slice storage::dedust_ton_vault_address;
+global cell storage::dict_baskets;
+global cell storage::dict_waitings;
+global cell storage::dict_excesses;
+
+() load_storage() impure inline {
+    slice ds = get_data().begin_parse();
+    cell jetton = ds~load_ref();
+    slice sj = jetton.begin_parse();
+    storage::total_supply = sj~load_coins();
+    storage::admin_address = sj~load_msg_addr();
+    storage::content = sj~load_ref();
+    storage::jetton_wallet_code = sj~load_ref();
+    storage::stopped = ds~load_bool();
+    storage::num_baskets = ds~load_uint(8);
+    storage::dedust_ton_vault_address = ds~load_msg_addr();
+    storage::dict_baskets = ds~load_dict();
+    storage::dict_waitings = ds~load_dict();
+    storage::dict_excesses = ds~load_dict();
+}
+
+() save_storage() impure inline {
+    cell jetton = begin_cell()
+        .store_coins(storage::total_supply)
+        .store_slice(storage::admin_address)
+        .store_ref(storage::content)
+        .store_ref(storage::jetton_wallet_code)
+        .end_cell();
+    cell data = begin_cell()
+        .store_ref(jetton)
+        .store_bool(storage::stopped)
+        .store_uint(storage::num_baskets, 8)
+        .store_slice(storage::dedust_ton_vault_address)
+        .store_dict(storage::dict_baskets)
+        .store_dict(storage::dict_waitings)
+        .store_dict(storage::dict_excesses)
+        .end_cell();
+    set_data(data);
+}
