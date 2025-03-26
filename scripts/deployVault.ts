@@ -21,16 +21,6 @@ const baskets = [
 
 ];
 
-const contentUri = 'https://bagel-finance.s3.ap-northeast-1.amazonaws.com/json/b-star-metadata.json';
-
-const contentJson = {
-    name: 'TONPlus',
-    symbol: 'TON+',
-    decimals: '9',
-    image: 'https://bagel-finance.s3.ap-northeast-1.amazonaws.com/images/icons/b-star.png',
-    description: 'TONPlus',
-};
-
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui();
     let content: Cell;
