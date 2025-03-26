@@ -3,23 +3,33 @@ import { Vault } from '../wrappers/Vault';
 import { compile, NetworkProvider } from '@ton/blueprint';
 import { jettonContentToCell, onchainContentToCell } from '../utils/JettonHelpers';
 
-const baskets = [
-    {
-        weight: 60000000000000n,
-        jettonWalletAddress: Address.parse('kQD0GKBM8ZbryVk2aESmzfU6b9b_8era_IkvBSELujFZPsyy'),
-        dedustPoolAddress: Address.parse('EQCHFiQM_TTSIiKhUCmWSN4aPSTqxJ4VSBEyDFaZ4izyq95Y'),
-        dedustJettonVaultAddress: Address.parse('EQAYqo4u7VF0fa4DPAebk4g9lBytj2VFny7pzXR0trjtXQaO'),
-        jettonMasterAddress: Address.parse('kQD0GKBM8ZbryVk2aESmzfU6b9b_8era_IkvBSELujFZPsyy'),
-    },
-    {
-        weight: 40000000000000n,
-        jettonWalletAddress: Address.parse('kQASjhpVEP4ainWIuapeo0kc6Sm6w_OHGG-t-768lQiSw0mL'),
-        dedustPoolAddress: Address.parse('EQCHFiQM_TTSIiKhUCmWSN4aPSTqxJ4VSBEyDFaZ4izyq95Y'),
-        dedustJettonVaultAddress: Address.parse('EQAYqo4u7VF0fa4DPAebk4g9lBytj2VFny7pzXR0trjtXQaO'),
-        jettonMasterAddress: Address.parse('kQASjhpVEP4ainWIuapeo0kc6Sm6w_OHGG-t-768lQiSw0mL'),
-    }
+async function inputBasket(ui: any, index: number) {
+    console.log(`\nEntering details for Basket ${index + 1}:`);
+    const weight = BigInt(await ui.input(`Enter weight for Basket ${index + 1} (default: 1000000000): `)) || 1000000000n;
+    const jettonWalletAddress = Address.parse(await ui.input(`Enter Jetton Wallet Address for Basket ${index + 1}: `));
+    const dedustPoolAddress = Address.parse(await ui.input(`Enter DeDust Pool Address for Basket ${index + 1}: `));
+    const dedustJettonVaultAddress = Address.parse(await ui.input(`Enter DeDust Jetton Vault Address for Basket ${index + 1}: `));
+    const jettonMasterAddress = Address.parse(await ui.input(`Enter Jetton Master Address for Basket ${index + 1}: `));
 
-];
+    return {
+        weight,
+        jettonWalletAddress,
+        dedustPoolAddress,
+        dedustJettonVaultAddress,
+        jettonMasterAddress
+    };
+}
+
+async function getBaskets(ui: any) {
+    const basketCount = parseInt(await ui.input('How many baskets do you want to configure? ')) || 2;
+    const baskets = [];
+    
+    for (let i = 0; i < basketCount; i++) {
+        baskets.push(await inputBasket(ui, i));
+    }
+    
+    return baskets;
+}
 
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui();
@@ -45,6 +55,8 @@ export async function run(provider: NetworkProvider) {
         const uri = await ui.input('Input Jetton content URI: ');
         content = jettonContentToCell(uri);
     }
+
+    const baskets = await getBaskets(ui);
 
     const vault = provider.open(
         Vault.createFromConfig(
