@@ -3,6 +3,33 @@ import { Vault } from '../wrappers/Vault';
 import { compile, NetworkProvider } from '@ton/blueprint';
 import { jettonContentToCell, onchainContentToCell } from '../utils/JettonHelpers';
 
+// 1. Jettonコンテンツ関連の関数
+async function getJettonContent(ui: any): Promise<Cell> {
+    const typeInput = await ui.choose('Select Jetton content type.', ['Onchain', 'Offchain'], (v: string) => v);
+    
+    if (typeInput === 'Onchain') {
+        let name = await ui.input('Input Jetton name: ');
+        const symbol = await ui.input('Input Jetton symbol: ');
+        const description = await ui.input('Input Jetton description: ');
+        const image = await ui.input('Input Jetton image: ');
+        let decimals = await ui.input('Input Jetton decimals (default: 9): ');
+        if (decimals === '') {
+            decimals = '9';
+        }
+        return onchainContentToCell({
+            name,
+            symbol,
+            description,
+            image,
+            decimals,
+        });
+    } else {
+        const uri = await ui.input('Input Jetton content URI: ');
+        return jettonContentToCell(uri);
+    }
+}
+
+// 2. バスケット設定関連の関数
 async function inputBasket(ui: any, index: number) {
     console.log(`\nEntering details for Basket ${index + 1}:`);
     console.log(`Note: Weight uses 9 decimals. For example:`);
@@ -38,33 +65,17 @@ async function getBaskets(ui: any) {
     return baskets;
 }
 
+// 3. メイン処理
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui();
-    let content: Cell;
-    const typeInput = await ui.choose('Select Jetton content type.', ['Onchain', 'Offchain'], (v) => v);
-    if (typeInput === 'Onchain') {
-        let name = await ui.input('Input Jetton name: ');
-        const symbol = await ui.input('Input Jetton symbol: ');
-        const description = await ui.input('Input Jetton description: ');
-        const image = await ui.input('Input Jetton image: ');
-        let decimals = await ui.input('Input Jetton decimals (default: 9): ');
-        if (decimals === '') {
-            decimals = '9';
-        }
-        content = onchainContentToCell({
-            name,
-            symbol,
-            description,
-            image,
-            decimals,
-        });
-    } else {
-        const uri = await ui.input('Input Jetton content URI: ');
-        content = jettonContentToCell(uri);
-    }
 
+    // 3.1 Jettonコンテンツの設定
+    const content = await getJettonContent(ui);
+
+    // 3.2 バスケットの設定
     const baskets = await getBaskets(ui);
 
+    // 3.3 Vaultのデプロイ
     const vault = provider.open(
         Vault.createFromConfig(
             {
@@ -79,6 +90,7 @@ export async function run(provider: NetworkProvider) {
     );
 
     await vault.sendDeploy(provider.sender(), toNano('0.1'));
-
     await provider.waitForDeploy(vault.address);
 }
+
+
