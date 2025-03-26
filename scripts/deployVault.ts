@@ -5,18 +5,25 @@ import { jettonContentToCell, onchainContentToCell } from '../utils/JettonHelper
 
 async function inputBasket(ui: any, index: number) {
     console.log(`\nEntering details for Basket ${index + 1}:`);
-    const weight = BigInt(await ui.input(`Enter weight for Basket ${index + 1} (default: 1000000000): `)) || 1000000000n;
-    const jettonWalletAddress = Address.parse(await ui.input(`Enter Jetton Wallet Address for Basket ${index + 1}: `));
+    console.log(`Note: Weight uses 9 decimals. For example:`);
+    console.log(`- 60000000000000 = 0.60 (60%)`);
+    console.log(`- 40000000000000 = 0.40 (40%)`);
+    let weightInput = await ui.input(`Enter weight for Basket ${index + 1}: `);
+    while (!weightInput) {
+        console.log('Weight is required. Please enter a valid number.');
+        weightInput = await ui.input(`Enter weight for Basket ${index + 1}: `);
+    }
+    const weight = BigInt(weightInput);
+    const jettonAddress = Address.parse(await ui.input(`Enter Jetton Address for Basket ${index + 1} (used for both Wallet and Master): `));
     const dedustPoolAddress = Address.parse(await ui.input(`Enter DeDust Pool Address for Basket ${index + 1}: `));
     const dedustJettonVaultAddress = Address.parse(await ui.input(`Enter DeDust Jetton Vault Address for Basket ${index + 1}: `));
-    const jettonMasterAddress = Address.parse(await ui.input(`Enter Jetton Master Address for Basket ${index + 1}: `));
 
     return {
         weight,
-        jettonWalletAddress,
+        jettonWalletAddress: jettonAddress,
         dedustPoolAddress,
         dedustJettonVaultAddress,
-        jettonMasterAddress
+        jettonMasterAddress: jettonAddress
     };
 }
 
