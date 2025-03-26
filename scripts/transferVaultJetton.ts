@@ -3,16 +3,64 @@ import { Vault } from '../wrappers/Vault';
 import { NetworkProvider } from '@ton/blueprint';
 import { Op } from '../utils/Constants';
 
-const vaultAddr = Address.parse('EQDtIA-1fOVXjdDDE_IoR1mk_Yd0Tyui5pUk-n32FKE93RlL');
-const jettonWalletAddr = Address.parse('EQAL9PHxGbAwdUirLG-HQ-LLwXFNAiopZNB8QL3pD2C8VLSg');
-const toAddr = Address.parse('UQBiFrKh7RHaCxywz6VBjZNBN_p896AoA9KM11b1E9r7Y_cP');
-const responseAddr = Address.parse('UQCcSoPv2JbPHBMLeo6C6N6or0XYrpEO_kcFc1RYU_SWCjKY');
-
-const amount = 10797583;
+// Default response address (Bagel Factory address)
+// This address will receive transfer notifications and can be overridden if needed
+const DEFAULT_RESPONSE_ADDR = 'UQCcSoPv2JbPHBMLeo6C6N6or0XYrpEO_kcFc1RYU_SWCjKY';
 
 export async function run(provider: NetworkProvider) {
+    const ui = provider.ui();
+
+    console.log('\nTransfer Jettons from Vault');
+    console.log('----------------------------');
+
+    // 1. Source Vault Address
+    // The contract address that currently holds the tokens
+    const vaultAddr = Address.parse(
+        await ui.input('Enter source Vault address: ')
+    );
+
+    // 2. Jetton Wallet Address
+    // The address of the specific Jetton type to transfer
+    const jettonWalletAddr = Address.parse(
+        await ui.input('Enter Jetton address(jettonWallet / jettonMaster): ')
+    );
+
+    // 3. Destination Address
+    // The wallet address that will receive the tokens
+    const toAddr = Address.parse(
+        await ui.input('Enter destination address: ')
+    );
+
+    // 4. Response Address (Optional)
+    // The address that will receive transfer notifications
+    // Defaults to Bagel Factory address if not specified
+    let responseAddr: Address;
+    const useCustomResponse = await ui.choose(
+        'Use custom response address?',
+        ['No (Use Bagel Factory)', 'Yes (Custom)'],
+        (v) => v
+    );
+    
+    if (useCustomResponse === 'Yes (Custom)') {
+        responseAddr = Address.parse(
+            await ui.input('Enter custom response address: ')
+        );
+    } else {
+        responseAddr = Address.parse(DEFAULT_RESPONSE_ADDR);
+    }
+
+    // 5. Transfer Amount
+    const amount = parseInt(
+        await ui.input('Enter transfer amount: ')
+    );
+    if (isNaN(amount) || amount <= 0) {
+        throw new Error('Invalid transfer amount');
+    }
+
+    // Initialize Vault contract
     const vault = provider.open(Vault.createFromAddress(vaultAddr));
 
+    // Create transfer message
     const body = beginCell()
         .storeUint(Op.transfer, 32)
         .storeUint(0, 64)
