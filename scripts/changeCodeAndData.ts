@@ -1,4 +1,4 @@
-import { Address } from '@ton/core';
+import { Address, toNano } from '@ton/core';
 import { Vault } from '../wrappers/Vault';
 import { NetworkProvider } from '@ton/blueprint';
 import { compile } from '@ton/blueprint';
@@ -111,6 +111,6 @@ export async function run(provider: NetworkProvider) {
             dedustTonVaultAddress,
             baskets,
         },
-        jettonData.totalSupply,
+        toNano('0.5'), // ガス量を0.5 TONに設定（デフォルト0.05 TON）
     );
 }
