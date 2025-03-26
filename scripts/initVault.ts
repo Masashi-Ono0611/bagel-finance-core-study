@@ -6,8 +6,8 @@ import { getJettonWalletAddr } from '../utils/Common';
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui();
     
-    // 1. Select network first to ensure correct client configuration
-    const network = await ui.choose('Which network do you want to use?', ['mainnet', 'testnet'], (v) => v);
+    // Get network from provider
+    const network = provider.network() === 'custom' ? 'mainnet' : provider.network();
     const tonClient = getTonClient(network as 'mainnet' | 'testnet');
 
     // 2. Get vault address and fetch data
