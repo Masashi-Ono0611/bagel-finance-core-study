@@ -3,7 +3,7 @@ import { Vault } from '../wrappers/Vault';
 import { NetworkProvider } from '@ton/blueprint';
 import { Op } from '../utils/Constants';
 
-// Default response address (Bagel Factory address)
+// Default response address (Bagel Factory address on mainnet)
 // This address will receive transfer notifications and can be overridden if needed
 const DEFAULT_RESPONSE_ADDR = 'UQCcSoPv2JbPHBMLeo6C6N6or0XYrpEO_kcFc1RYU_SWCjKY';
 
@@ -22,7 +22,7 @@ export async function run(provider: NetworkProvider) {
     // 2. Jetton Wallet Address
     // The address of the specific Jetton type to transfer
     const jettonWalletAddr = Address.parse(
-        await ui.input('Enter Jetton address(jettonWallet / jettonMaster): ')
+        await ui.input('Enter Jetton wallet address: ')
     );
 
     // 3. Destination Address
@@ -50,8 +50,12 @@ export async function run(provider: NetworkProvider) {
     }
 
     // 5. Transfer Amount
+    console.log('\nTransfer amount must be specified in nanojettons (9 decimal places)');
+    console.log('Examples:');
+    console.log('  1000000000 = 1.0 Jetton');
+    console.log('   500000000 = 0.5 Jetton');
     const amount = parseInt(
-        await ui.input('Enter transfer amount: ')
+        await ui.input('Enter amount in nanojettons: ')
     );
     if (isNaN(amount) || amount <= 0) {
         throw new Error('Invalid transfer amount');
