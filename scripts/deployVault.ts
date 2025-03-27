@@ -41,16 +41,20 @@ async function inputBasket(ui: any, index: number) {
         weightInput = await ui.input(`Enter weight for Basket ${index + 1}: `);
     }
     const weight = BigInt(weightInput);
-    const jettonAddress = Address.parse(await ui.input(`Enter Jetton Address for Basket ${index + 1} (used for both Wallet and Master): `));
+    const jettonMasterAddress = Address.parse(await ui.input(`Enter Jetton Master Address for Basket ${index + 1}: `));
     const dedustPoolAddress = Address.parse(await ui.input(`Enter DeDust Pool Address for Basket ${index + 1}: `));
     const dedustJettonVaultAddress = Address.parse(await ui.input(`Enter DeDust Jetton Vault Address for Basket ${index + 1}: `));
 
+    // Note: jettonWalletAddress will be determined during initVault
+    // Here we use a placeholder address that will be replaced
+    const placeholderWalletAddress = Address.parse('EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c');
+
     return {
         weight,
-        jettonWalletAddress: jettonAddress,
+        jettonWalletAddress: placeholderWalletAddress, // This will be set during initVault
         dedustPoolAddress,
         dedustJettonVaultAddress,
-        jettonMasterAddress: jettonAddress
+        jettonMasterAddress
     };
 }
 
