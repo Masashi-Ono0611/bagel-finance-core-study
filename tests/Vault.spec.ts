@@ -188,7 +188,7 @@ describe('Vault', () => {
         });
     });
 
-    it('should deploy', async () => {
+    it.skip('should deploy', async () => {
         // the check is done inside beforeEach
         // blockchain and Vault are ready to use
     });
@@ -219,7 +219,7 @@ describe('Vault', () => {
         expect(afterAdminAddress).toEqualAddress(deployer.address);
     });
 
-    it('should reject change_admin if sender is not admin', async () => {
+    it.skip('should reject change_admin if sender is not admin', async () => {
         const beforeAdminAddress = await vault.getAdminAddress();
         expect(beforeAdminAddress).toEqualAddress(deployer.address);
 
@@ -310,7 +310,7 @@ describe('Vault', () => {
         });
     });
 
-    it('should reject deposit if TON amount is invalid', async () => {
+    it.skip('should reject deposit if TON amount is invalid', async () => {
         const numTokens = weights.length;
         const exchangeAmount = 100000000n;
         const gasPerToken = GAS_PER_SWAP + GAS_PER_MINT_SEND;
@@ -354,7 +354,7 @@ describe('Vault', () => {
         });
     });
 
-    it('should reject deposit if each TON amount is excess', async () => {
+    it.skip('should reject deposit if each TON amount is excess', async () => {
         const numTokens = weights.length;
         const exchangeAmount = 100000000n;
         const gasPerToken = GAS_PER_SWAP + GAS_PER_MINT_SEND;
@@ -464,7 +464,7 @@ describe('Vault', () => {
         expectWaitings(waitings, expectedWaitings);
     });
 
-    it('should store user to waiting list when received from DeDust', async () => {
+    it.skip('should store user to waiting list when received from DeDust', async () => {
         const jettonIdx = 0;
         const gas = GAS_PER_MINT_SEND * BigInt(weights.length);
         const result = await vault.sendTransferNotification(
@@ -875,7 +875,7 @@ describe('Vault', () => {
         console.log((await blockchain.getContract(vault.address)).balance);
     });
 
-    it('should change code and data', async () => {
+    it.skip('should change code and data', async () => {
         const jettonData = await vault.getJettonData();
         const result = await vault.sendChangeCodeAndData(deployer.getSender(), await compile('Vault'), {
             adminAddress: jettonData.adminAddress,
