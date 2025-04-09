@@ -223,12 +223,11 @@ const int INDEX_UNIT = 1000000000;
 
         save_storage();
         
-        ;; シンプルに超過ガスを蓄積する
-        ;; Accumulate excess gas for this operation
-        accumulate_excess(
+        ;; 内部転送をトラッキングし、最終的なリファンドのために状態を更新
+        ;; Track internal transfer for final refund at the end of transaction chain
+        track_internal_transfer(
             query_id,
-            user_address,
-            msg_value - GAS_PER_MINT_SEND - gas_transfer_notification_complete(storage::num_baskets)
+            user_address
         );
         
         ;; Do not send accumulated excess here - we'll do it at the end of the entire transaction chain
@@ -243,17 +242,16 @@ const int INDEX_UNIT = 1000000000;
             ;; Add current operation's excess gas to accumulated amount
             int excess_value = msg_value - gas_excesses();
             if (excess_value > 0) {
-                ;; 現在の操作の超過ガスを蓄積に追加
-                accumulate_excess(
+                ;; 内部転送をトラッキング
+                track_internal_transfer(
                     query_id,
-                    user_address,
-                    excess_value
+                    user_address
                 );
             }
             
-            ;; トランザクションチェーンの最後なので蓄積したガスを返還
-            ;; Send all accumulated excess for this query_id
-            send_accumulated_excess(query_id);
+            ;; トランザクションチェーンの最後なのでリファンドを送信
+            ;; Send fixed refund at the end of transaction chain
+            send_fixed_refund(query_id, user_address);
             storage::dict_excesses~udict_delete?(64, query_id);
             save_storage();
         }
