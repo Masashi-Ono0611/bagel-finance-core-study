@@ -421,4 +421,36 @@ export class Vault implements Contract {
         }
         return excesses;
     }
+
+    // Get internal transfer counters - for new implementation
+    async getInternalTransferCounters(provider: ContractProvider): Promise<{ queryId: bigint; count: number; userAddress: Address }[]> {
+        const res = await provider.get('get_excesses', []);
+        const countersCell = res.stack.readCellOpt();
+        if (!countersCell) {
+            return [];
+        }
+        
+        // Load dictionary with 64-bit keys and cell values
+        const countersDict = Dictionary.loadDirect(
+            Dictionary.Keys.BigUint(64),
+            Dictionary.Values.Cell(),
+            countersCell,
+        );
+        
+        const counters = [];
+        // Use keys() and get() instead of entries() which may not exist on this Dictionary type
+        for (const queryId of countersDict.keys()) {
+            const counterCell = countersDict.get(queryId);
+            if (counterCell) {
+                // Parse counter cell - it contains count (16 bits) and user address
+                const slice = counterCell.beginParse();
+                const count = slice.loadUint(16);
+                const userAddress = slice.loadAddress();
+                
+                counters.push({ queryId, count, userAddress });
+            }
+        }
+        
+        return counters;
+    }
 }

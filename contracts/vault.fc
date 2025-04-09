@@ -113,11 +113,9 @@ const int INDEX_UNIT = 1000000000;
             user_address = payload_slice~load_msg_addr();
         }
 
-        ;; Store user address for excesses
-        storage::dict_excesses~udict_set_builder(64, query_id, begin_cell().store_slice(user_address));
-        
-        ;; At this point, we know we're in a Jetton Notify transaction - save current gas for accumulation
-        ;; We'll accumulate gas here and in the subsequent excesses operation, then send it all at once
+        ;; At this point, we know we're in a Jetton Notify transaction
+        ;; カウンターを増加してユーザーアドレスを保存する
+        track_internal_transfer(query_id, user_address);
 
         cell dict_balances = new_dict();
         ;; get tmp balances from storage 
@@ -223,40 +221,60 @@ const int INDEX_UNIT = 1000000000;
 
         save_storage();
         
-        ;; トランザクションチェーンの次のステップへ自然に流れる
-        ;; Note: track_internal_transfer呼び出しを削除
+        ;; 内部転送をトラッキングし、最終的なリファンドのために状態を更新
+        ;; Jettonを受信した時のみカウンタを増加（シンプルな実装）
+        track_internal_transfer(
+            query_id,
+            user_address
+        );
         
         ;; Do not send accumulated excess here - we'll do it at the end of the entire transaction chain
         return ();
     }
 
+    if (op == op::store_excess()) {
+        ;; 何もせず、単にガスを消費してコントラクト内に保持
+        return ();
+    }
+
     if (op == op::excesses()) {
-        (slice slice_excesses, int found_excesses) = storage::dict_excesses.udict_get?(64, query_id);
-        if (found_excesses) {
-            slice user_address = slice_excesses~load_msg_addr();
+        ;; カウンターの確認
+        (cell count_cell, int found) = storage::internal_transfer_counts.udict_get_ref?(64, query_id);
+        
+        if (found) {  ;; カウンターが存在する = バスケット処理関連
+            slice ds = count_cell.begin_parse();
+            int count = ds~load_uint(16);
+            slice user_address = ds~load_msg_addr();  ;; カウンターと一緒に保存されているユーザーアドレス
             
-            ;; track_internal_transferは呼び出さない！
-            ;; 代わりに現在のカウンタ値を直接確認する
-            
-            ;; カウンタの現在値を確認
-            (cell count_cell, int found) = storage::internal_transfer_counts.udict_get_ref?(64, query_id);
-            
-            if (found) {
-                slice ds = count_cell.begin_parse();
-                int count = ds~load_uint(16);
-                
-                ;; カウントがバスケット数以上なら、リファンドを送信
-                if (count >= storage::num_baskets * 2) {  ;; 閾値を2倍に設定（より安全）
+            if (count < storage::num_baskets) {
+                ;; カウンター < バスケット数の場合、ガスをBに保持
+                cell msg = begin_cell()
+                    .store_uint(0x18, 6)
+                    .store_slice(my_address())  ;; コントラクト自身
+                    .store_coins(0)
+                    .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                    .store_uint(op::store_excess(), 32)
+                    .store_uint(query_id, 64)
+                    .end_cell();
+                send_raw_message(msg, 64);  ;; mode=64でガスを宛先に転送
+            } else {
+                if (count == storage::num_baskets) {
+                    ;; カウンター = バスケット数の場合、固定リファンド送信 (カウンターは削除しない)
                     send_fixed_refund(query_id, user_address);
-                    ;; クリーンアップ
-                    storage::internal_transfer_counts~udict_delete?(64, query_id);
+                    ;; 注：ここではカウンターはリセットしない
+                } else {
+                    ;; カウンター > バスケット数の場合、何もせず自然に流す
+                    return ();
                 }
-                ;; そうでなければ何もしない（ガスは次へ自然に流れる）
             }
             
-            storage::dict_excesses~udict_delete?(64, query_id);
             save_storage();
+        } else {
+            ;; カウンターが存在しない = バスケット処理と無関係
+            ;; 自然にガスを流す
+            return ();
         }
+        
         return ();
     }
 
@@ -427,5 +445,5 @@ cell get_waitings() method_id {
 
 cell get_excesses() method_id {
     load_storage();
-    return storage::dict_excesses;
+    return storage::internal_transfer_counts;
 }

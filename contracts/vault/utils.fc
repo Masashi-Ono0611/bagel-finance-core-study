@@ -38,29 +38,24 @@ int gas_excesses() asm "3000000 PUSHINT";
     if (found) {
         slice ds = count_cell.begin_parse();
         count = ds~load_uint(16);
-        ;; Already stored user address will be used
+        ;; ユーザーアドレスは保持するが上書きはしない
         user_address = ds~load_msg_addr();
     }
     
-    ;; Increment counter
+    ;; カウンター増加
     count += 1;
     
-    ;; Store updated count
+    ;; カウンターとユーザーアドレスを保存
     cell new_count_cell = begin_cell()
         .store_uint(count, 16)
         .store_slice(user_address)
         .end_cell();
     
     storage::internal_transfer_counts~udict_set_ref(64, query_id, new_count_cell);
+    save_storage();
     
-    ;; Check if count has reached number of baskets
-    if (count >= storage::num_baskets) {
-        ;; Final transaction - send fixed refund
-        send_fixed_refund(query_id, user_address);
-        
-        ;; Clean up tracking data
-        storage::internal_transfer_counts~udict_delete?(64, query_id);
-    }
+    ;; 注：自動的なリファンド送信とクリーンアップは行わない
+    ;; すべてexcesses()ハンドラで処理する
 }
 
 () mint_tokens(slice to_address, cell jetton_wallet_code, int amount, cell master_msg) impure {
