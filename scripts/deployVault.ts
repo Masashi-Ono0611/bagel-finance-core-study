@@ -33,8 +33,9 @@ async function getJettonContent(ui: any): Promise<Cell> {
 async function inputBasket(ui: any, index: number) {
     console.log(`\nEntering details for Basket ${index + 1}:`);
     console.log(`Note: Weight uses 9 decimals. For example:`);
-    console.log(`- 60000000000000 = 0.60 (60%)`);
-    console.log(`- 40000000000000 = 0.40 (40%)`);
+    console.log(`- 600000000 = 0.60 (60%)`);
+    console.log(`- 400000000 = 0.40 (40%)`);
+    console.log(`IMPORTANT: Use the same scale as other Vaults (10^8 order, not 10^13)`);
     let weightInput = await ui.input(`Enter weight for Basket ${index + 1}: `);
     while (!weightInput) {
         console.log('Weight is required. Please enter a valid number.');

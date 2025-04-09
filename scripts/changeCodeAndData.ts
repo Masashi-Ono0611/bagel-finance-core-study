@@ -14,6 +14,7 @@ async function inputBasket(ui: any, tonClient: any, vaultAddress: Address, index
     console.log('Note: Weight uses 9 decimals. For example:');
     console.log('- 1000000000 = 1.0 (100%)');
     console.log('- 500000000 = 0.5 (50%)');
+    console.log('IMPORTANT: Use the same scale as other Vaults (10^8 order, not 10^13)');
 
     // Get weight
     const weight = BigInt(
