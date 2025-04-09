@@ -144,9 +144,7 @@ slice addr_none() asm "b{00} PUSHSLICE";
         .end_cell();
     send_raw_message(msg, 0);
     
-    ;; Track this internal transfer operation
-    ;; mint_index always transfers to user's jetton wallet
-    track_internal_transfer(query_id, to_address);
+    ;; Note: track_internal_transfer呼び出しを削除
 }
 
 () send_jetton(
@@ -175,8 +173,7 @@ slice addr_none() asm "b{00} PUSHSLICE";
         .end_cell();
     send_raw_message(msg, 0);
     
-    ;; Track this internal transfer operation
-    track_internal_transfer(query_id, to_address);
+    ;; Note: track_internal_transfer呼び出しを削除
 }
 
 () swap_dedust_jetton (

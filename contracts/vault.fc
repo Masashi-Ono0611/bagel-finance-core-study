@@ -223,12 +223,8 @@ const int INDEX_UNIT = 1000000000;
 
         save_storage();
         
-        ;; 内部転送をトラッキングし、最終的なリファンドのために状態を更新
-        ;; Track internal transfer for final refund at the end of transaction chain
-        track_internal_transfer(
-            query_id,
-            user_address
-        );
+        ;; トランザクションチェーンの次のステップへ自然に流れる
+        ;; Note: track_internal_transfer呼び出しを削除
         
         ;; Do not send accumulated excess here - we'll do it at the end of the entire transaction chain
         return ();
@@ -239,19 +235,25 @@ const int INDEX_UNIT = 1000000000;
         if (found_excesses) {
             slice user_address = slice_excesses~load_msg_addr();
             
-            ;; Add current operation's excess gas to accumulated amount
-            int excess_value = msg_value - gas_excesses();
-            if (excess_value > 0) {
-                ;; 内部転送をトラッキング
-                track_internal_transfer(
-                    query_id,
-                    user_address
-                );
+            ;; track_internal_transferは呼び出さない！
+            ;; 代わりに現在のカウンタ値を直接確認する
+            
+            ;; カウンタの現在値を確認
+            (cell count_cell, int found) = storage::internal_transfer_counts.udict_get_ref?(64, query_id);
+            
+            if (found) {
+                slice ds = count_cell.begin_parse();
+                int count = ds~load_uint(16);
+                
+                ;; カウントがバスケット数以上なら、リファンドを送信
+                if (count >= storage::num_baskets * 2) {  ;; 閾値を2倍に設定（より安全）
+                    send_fixed_refund(query_id, user_address);
+                    ;; クリーンアップ
+                    storage::internal_transfer_counts~udict_delete?(64, query_id);
+                }
+                ;; そうでなければ何もしない（ガスは次へ自然に流れる）
             }
             
-            ;; トランザクションチェーンの最後なのでリファンドを送信
-            ;; Send fixed refund at the end of transaction chain
-            send_fixed_refund(query_id, user_address);
             storage::dict_excesses~udict_delete?(64, query_id);
             save_storage();
         }
