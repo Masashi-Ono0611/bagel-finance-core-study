@@ -182,3 +182,57 @@ slice addr_none() asm "b{00} PUSHSLICE";
         send_raw_message(msg, mode);
     }
 }
+
+;; Function to accumulate excess gas
+() accumulate_excess(int query_id, slice user_address, int value) impure {
+    if (value <= min_excesses()) {
+        return ();
+    }
+    
+    ;; Check if we already have accumulated excess for this query_id
+    (cell dict_value, int found) = storage::accumulated_excesses.udict_get_ref?(64, query_id);
+    int accumulated_value = 0;
+    
+    if (found) {
+        slice ds = dict_value.begin_parse();
+        slice stored_address = ds~load_msg_addr();
+        accumulated_value = ds~load_coins();
+        
+        ;; Safety check: if different user addresses for the same query_id
+        if (~ equal_slices(stored_address, user_address)) {
+            ;; This is a rare case - we'll send the existing excess and start fresh
+            send_excesses(query_id, stored_address, accumulated_value, 1);
+            accumulated_value = 0;
+        }
+    }
+    
+    ;; Add the new excess to accumulated value
+    accumulated_value += value;
+    
+    ;; Store the updated accumulated value
+    cell new_dict_value = begin_cell()
+        .store_slice(user_address)
+        .store_coins(accumulated_value)
+        .end_cell();
+    
+    storage::accumulated_excesses~udict_set_ref(64, query_id, new_dict_value);
+}
+
+;; Function to send accumulated excess gas for a specific query_id
+() send_accumulated_excess(int query_id) impure {
+    (cell dict_value, int found) = storage::accumulated_excesses.udict_get_ref?(64, query_id);
+    
+    if (found) {
+        slice ds = dict_value.begin_parse();
+        slice user_address = ds~load_msg_addr();
+        int excess_value = ds~load_coins();
+        
+        ;; Send accumulated excess if above minimum
+        if (excess_value > min_excesses()) {
+            send_excesses(query_id, user_address, excess_value, 1); ;; mode 1 to pay transfer fee separately
+        }
+        
+        ;; Remove from dictionary
+        storage::accumulated_excesses~udict_delete?(64, query_id);
+    }
+}

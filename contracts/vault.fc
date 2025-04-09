@@ -77,7 +77,8 @@ const int INDEX_UNIT = 1000000000;
             );
             i += 1;
         }
-        send_excesses(query_id, sender_address, msg_value - total_swap_amount - gas, 2);
+        ;; Do not send excess gas here to allow it to naturally flow to the next step in the transaction chain
+        ;; The excess gas (msg_value - total_swap_amount - gas) will be automatically carried to the next operation
         return ();
     }
 
@@ -112,8 +113,11 @@ const int INDEX_UNIT = 1000000000;
             user_address = payload_slice~load_msg_addr();
         }
 
-        ;; store for excesses
+        ;; Store user address for excesses
         storage::dict_excesses~udict_set_builder(64, query_id, begin_cell().store_slice(user_address));
+        
+        ;; At this point, we know we're in a Jetton Notify transaction - save current gas for accumulation
+        ;; We'll accumulate gas here and in the subsequent excesses operation, then send it all at once
 
         cell dict_balances = new_dict();
         ;; get tmp balances from storage 
@@ -172,12 +176,8 @@ const int INDEX_UNIT = 1000000000;
                     begin_cell().store_dict(dict_balances)
                 );
                 save_storage();
-                send_excesses(
-                    query_id,
-                    user_address,
-                    msg_value - GAS_PER_MINT_SEND - gas_transfer_notification(),
-                    2
-                );
+                ;; In the middle of a transaction chain, excess gas will automatically flow to the next operation
+                ;; No special gas handling is needed here - TON will handle it automatically
                 return ();
             }
             i += 1;
@@ -222,12 +222,16 @@ const int INDEX_UNIT = 1000000000;
         }
 
         save_storage();
-        send_excesses(
+        
+        ;; シンプルに超過ガスを蓄積する
+        ;; Accumulate excess gas for this operation
+        accumulate_excess(
             query_id,
             user_address,
-            msg_value - GAS_PER_MINT_SEND - gas_transfer_notification_complete(storage::num_baskets),
-            2
+            msg_value - GAS_PER_MINT_SEND - gas_transfer_notification_complete(storage::num_baskets)
         );
+        
+        ;; Do not send accumulated excess here - we'll do it at the end of the entire transaction chain
         return ();
     }
 
@@ -235,7 +239,21 @@ const int INDEX_UNIT = 1000000000;
         (slice slice_excesses, int found_excesses) = storage::dict_excesses.udict_get?(64, query_id);
         if (found_excesses) {
             slice user_address = slice_excesses~load_msg_addr();
-            send_excesses(query_id, user_address, msg_value - gas_excesses(), 2);
+            
+            ;; Add current operation's excess gas to accumulated amount
+            int excess_value = msg_value - gas_excesses();
+            if (excess_value > 0) {
+                ;; 現在の操作の超過ガスを蓄積に追加
+                accumulate_excess(
+                    query_id,
+                    user_address,
+                    excess_value
+                );
+            }
+            
+            ;; トランザクションチェーンの最後なので蓄積したガスを返還
+            ;; Send all accumulated excess for this query_id
+            send_accumulated_excess(query_id);
             storage::dict_excesses~udict_delete?(64, query_id);
             save_storage();
         }

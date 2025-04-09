@@ -10,6 +10,9 @@ global cell storage::dict_baskets;
 global cell storage::dict_waitings;
 global cell storage::dict_excesses;
 
+;; Variables for accumulating excess gas within baskets
+global cell storage::accumulated_excesses;  ;; Dictionary to store accumulated excess gas (key: query_id, value: {user_address, amount})
+
 () load_storage() impure inline {
     slice ds = get_data().begin_parse();
     cell jetton = ds~load_ref();
@@ -24,6 +27,9 @@ global cell storage::dict_excesses;
     storage::dict_baskets = ds~load_dict();
     storage::dict_waitings = ds~load_dict();
     storage::dict_excesses = ds~load_dict();
+    
+    ;; Initialize the dictionary for accumulated excess gas
+    storage::accumulated_excesses = new_dict();
 }
 
 () save_storage() impure inline {
@@ -41,6 +47,7 @@ global cell storage::dict_excesses;
         .store_dict(storage::dict_baskets)
         .store_dict(storage::dict_waitings)
         .store_dict(storage::dict_excesses)
+        .store_dict(storage::accumulated_excesses)
         .end_cell();
     set_data(data);
 }
