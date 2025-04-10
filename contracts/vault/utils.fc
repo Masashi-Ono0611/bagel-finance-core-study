@@ -13,7 +13,6 @@ int gas_transfer_notification_complete(int num_baskets) inline {
 int gas_burn_notification(int num_baskets) inline {
     return num_baskets * 2100000 + 4000000;
 }
-int gas_excesses() asm "3000000 PUSHINT";
 
 ;; Function to send fixed refund amount
 () send_fixed_refund(int query_id, slice user_address) impure {

@@ -228,11 +228,6 @@ const int INDEX_UNIT = 1000000000;
         return ();
     }
 
-    if (op == op::store_excess()) {
-        ;; 何もせず、単にガスを消費してコントラクト内に保持
-        return ();
-    }
-
     if (op == op::excesses()) {
         ;; ミント処理時に直接リファンドが実行される実装に変更したため、
         ;; excessesハンドラでは特別な対応が必要ない場合、自然にガスを流す

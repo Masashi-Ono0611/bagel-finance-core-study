@@ -3,16 +3,77 @@ import { Vault } from '../wrappers/Vault';
 import { compile, NetworkProvider } from '@ton/blueprint';
 import { jettonContentToCell, onchainContentToCell } from '../utils/JettonHelpers';
 
+// バスケットテンプレート定義
+interface BasketTemplate {
+    weight: string;
+    jettonMasterAddress: string;
+    dedustPoolAddress: string;
+    dedustJettonVaultAddress: string;
+}
+
+interface VaultTemplate {
+    image: string;
+    decimals: string;
+    baskets: BasketTemplate[];
+}
+
+// 定義済みテンプレート
+const templates: Record<string, VaultTemplate> = {
+    '2baskets index template': {
+        image: 'https://bagel-finance.s3.ap-northeast-1.amazonaws.com/images/ton-plus-index.png',
+        decimals: '9',
+        baskets: [
+            {
+                weight: '600000000',
+                jettonMasterAddress: 'EQDNhy-nxYFgUqzfUzImBEP67JqsyMIcyk2S5_RwNNEYku0k',
+                dedustPoolAddress: 'EQCHFiQM_TTSIiKhUCmWSN4aPSTqxJ4VSBEyDFaZ4izyq95Y',
+                dedustJettonVaultAddress: 'EQAYqo4u7VF0fa4DPAebk4g9lBytj2VFny7pzXR0trjtXQaO'
+            },
+            {
+                weight: '400000000',
+                jettonMasterAddress: 'EQDPdq8xjAhytYqfGSX8KcFWIReCufsB9Wdg0pLlYSO_h76w',
+                dedustPoolAddress: 'EQBWsAdyAg-8fs3G-m-eUBCXZuVaOldF5-tCMJBJzxQG7nLX',
+                dedustJettonVaultAddress: 'EQCRjILmJD0ZD7y6POFyicCx20PoypkEwHJ64AMJ7vwkXGjm'
+            }
+        ]
+    },
+    '3baskets index template': {
+        image: 'https://bagel-finance.s3.ap-northeast-1.amazonaws.com/images/ton-plus-index.png',
+        decimals: '9',
+        baskets: [
+            {
+                weight: '328092149',
+                jettonMasterAddress: 'EQDNhy-nxYFgUqzfUzImBEP67JqsyMIcyk2S5_RwNNEYku0k',
+                dedustPoolAddress: 'EQCHFiQM_TTSIiKhUCmWSN4aPSTqxJ4VSBEyDFaZ4izyq95Y',
+                dedustJettonVaultAddress: 'EQAYqo4u7VF0fa4DPAebk4g9lBytj2VFny7pzXR0trjtXQaO'
+            },
+            {
+                weight: '324698616',
+                jettonMasterAddress: 'EQDPdq8xjAhytYqfGSX8KcFWIReCufsB9Wdg0pLlYSO_h76w',
+                dedustPoolAddress: 'EQBWsAdyAg-8fs3G-m-eUBCXZuVaOldF5-tCMJBJzxQG7nLX',
+                dedustJettonVaultAddress: 'EQCRjILmJD0ZD7y6POFyicCx20PoypkEwHJ64AMJ7vwkXGjm'
+            },
+            {
+                weight: '347209234',
+                jettonMasterAddress: 'EQAfF5j3JMIpZlLmACv7Ub7RH7WmiVMuV4ivcgNYHvNnqHTz',
+                dedustPoolAddress: 'EQCfYrAZUFLwFhUHWvU63PS0FBIh5CePWEho6T2TDgoGok50',
+                dedustJettonVaultAddress: 'EQBCbc0Yh06L98xloaIZvroIiZgA6pllMI0SBz3FsX69ATl3'
+            }
+        ]
+    },
+    // 他のテンプレートもここに追加できます
+};
+
 // 1. Jettonコンテンツ関連の関数
-async function getJettonContent(ui: any): Promise<Cell> {
+async function getJettonContent(ui: any, templateData?: VaultTemplate): Promise<Cell> {
     const typeInput = await ui.choose('Select Jetton content type.', ['Onchain', 'Offchain'], (v: string) => v);
     
     if (typeInput === 'Onchain') {
         let name = await ui.input('Input Jetton name: ');
         const symbol = await ui.input('Input Jetton symbol: ');
         const description = await ui.input('Input Jetton description: ');
-        const image = await ui.input('Input Jetton image: ');
-        let decimals = await ui.input('Input Jetton decimals (default: 9): ');
+        const image = templateData ? templateData.image : await ui.input('Input Jetton image: ');
+        let decimals = templateData ? templateData.decimals : await ui.input('Input Jetton decimals (default: 9): ');
         if (decimals === '') {
             decimals = '9';
         }
@@ -59,26 +120,76 @@ async function inputBasket(ui: any, index: number) {
     };
 }
 
-async function getBaskets(ui: any) {
-    const basketCount = parseInt(await ui.input('How many baskets do you want to configure? ')) || 2;
-    const baskets = [];
-    
-    for (let i = 0; i < basketCount; i++) {
-        baskets.push(await inputBasket(ui, i));
+async function getBaskets(ui: any, templateData?: VaultTemplate) {
+    if (templateData) {
+        const basketCount = templateData.baskets.length;
+        console.log(`Using template with ${basketCount} baskets`);
+        
+        const baskets = [];
+        for (let i = 0; i < basketCount; i++) {
+            const templateBasket = templateData.baskets[i];
+            
+            console.log(`\nEntering details for Basket ${i + 1}:`);
+            console.log(`Note: Weight uses 9 decimals. For example:`);
+            console.log(`- 600000000 = 0.60 (60%)`);
+            console.log(`- 400000000 = 0.40 (40%)`);
+            console.log(`IMPORTANT: Use the same scale as other Vaults (10^8 order, not 10^13)`);
+            
+            // テンプレートから値を使用
+            const weight = BigInt(templateBasket.weight);
+            console.log(`Enter weight for Basket ${i + 1}: ${templateBasket.weight}`);
+            
+            const jettonMasterAddress = Address.parse(templateBasket.jettonMasterAddress);
+            console.log(`Enter Jetton Master Address for Basket ${i + 1}: ${templateBasket.jettonMasterAddress}`);
+            
+            const dedustPoolAddress = Address.parse(templateBasket.dedustPoolAddress);
+            console.log(`Enter DeDust Pool Address for Basket ${i + 1}: ${templateBasket.dedustPoolAddress}`);
+            
+            const dedustJettonVaultAddress = Address.parse(templateBasket.dedustJettonVaultAddress);
+            console.log(`Enter DeDust Jetton Vault Address for Basket ${i + 1}: ${templateBasket.dedustJettonVaultAddress}`);
+            
+            // プレースホルダーウォレットアドレス
+            const placeholderWalletAddress = Address.parse('EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c');
+            
+            baskets.push({
+                weight,
+                jettonWalletAddress: placeholderWalletAddress,
+                dedustPoolAddress,
+                dedustJettonVaultAddress,
+                jettonMasterAddress
+            });
+        }
+        
+        return baskets;
+    } else {
+        // 通常の手動入力フロー
+        const basketCount = parseInt(await ui.input('How many baskets do you want to configure? ')) || 2;
+        const baskets = [];
+        
+        for (let i = 0; i < basketCount; i++) {
+            baskets.push(await inputBasket(ui, i));
+        }
+        
+        return baskets;
     }
-    
-    return baskets;
 }
 
 // 3. メイン処理
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui();
 
+    // テンプレート選択オプションを作成
+    const templateOptions = ['[手動入力]', ...Object.keys(templates)];
+    const templateChoice = await ui.choose('テンプレートを選択するか、手動入力を選んでください:', templateOptions, (v: string) => v);
+    
+    // 選択されたテンプレートまたはnull（手動入力の場合）
+    const selectedTemplate = templateChoice === '[手動入力]' ? undefined : templates[templateChoice];
+
     // 3.1 Jettonコンテンツの設定
-    const content = await getJettonContent(ui);
+    const content = await getJettonContent(ui, selectedTemplate);
 
     // 3.2 バスケットの設定
-    const baskets = await getBaskets(ui);
+    const baskets = await getBaskets(ui, selectedTemplate);
 
     // 3.3 Vaultのデプロイ
     // DeDust TON Vaultアドレスは、DeDustのメインプールアドレスで固定
