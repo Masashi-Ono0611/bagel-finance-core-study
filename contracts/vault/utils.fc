@@ -29,34 +29,7 @@ int gas_excesses() asm "3000000 PUSHINT";
     send_raw_message(msg, 2);  ;; mode = 2 (pay from contract balance, not from remaining gas)
 }
 
-;; Function to track internal transfer operations
-() track_internal_transfer(int query_id, slice user_address) impure {
-    (cell count_cell, int found) = storage::internal_transfer_counts.udict_get_ref?(64, query_id);
-    
-    int count = 0;
-    
-    if (found) {
-        slice ds = count_cell.begin_parse();
-        count = ds~load_uint(16);
-        ;; ユーザーアドレスは保持するが上書きはしない
-        user_address = ds~load_msg_addr();
-    }
-    
-    ;; カウンター増加
-    count += 1;
-    
-    ;; カウンターとユーザーアドレスを保存
-    cell new_count_cell = begin_cell()
-        .store_uint(count, 16)
-        .store_slice(user_address)
-        .end_cell();
-    
-    storage::internal_transfer_counts~udict_set_ref(64, query_id, new_count_cell);
-    save_storage();
-    
-    ;; 注：自動的なリファンド送信とクリーンアップは行わない
-    ;; すべてexcesses()ハンドラで処理する
-}
+
 
 () mint_tokens(slice to_address, cell jetton_wallet_code, int amount, cell master_msg) impure {
     cell state_init = calculate_jetton_wallet_state_init(to_address, my_address(), jetton_wallet_code);

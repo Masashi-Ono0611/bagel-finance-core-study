@@ -422,35 +422,38 @@ export class Vault implements Contract {
         return excesses;
     }
 
-    // Get internal transfer counters - for new implementation
-    async getInternalTransferCounters(provider: ContractProvider): Promise<{ queryId: bigint; count: number; userAddress: Address }[]> {
+    // Get activities with timestamps - for v3 implementation
+    async getActivities(provider: ContractProvider): Promise<{ queryId: bigint; timestamp: number; userAddress: Address; elapsed: number }[]> {
         const res = await provider.get('get_excesses', []);
-        const countersCell = res.stack.readCellOpt();
-        if (!countersCell) {
+        const activitiesCell = res.stack.readCellOpt();
+        if (!activitiesCell) {
             return [];
         }
         
         // Load dictionary with 64-bit keys and cell values
-        const countersDict = Dictionary.loadDirect(
+        const activitiesDict = Dictionary.loadDirect(
             Dictionary.Keys.BigUint(64),
             Dictionary.Values.Cell(),
-            countersCell,
+            activitiesCell,
         );
         
-        const counters = [];
+        const activities = [];
+        const currentTime = Math.floor(Date.now() / 1000); // 現在のUNIXタイムスタンプ（秒）
+        
         // Use keys() and get() instead of entries() which may not exist on this Dictionary type
-        for (const queryId of countersDict.keys()) {
-            const counterCell = countersDict.get(queryId);
-            if (counterCell) {
-                // Parse counter cell - it contains count (16 bits) and user address
-                const slice = counterCell.beginParse();
-                const count = slice.loadUint(16);
+        for (const queryId of activitiesDict.keys()) {
+            const activityCell = activitiesDict.get(queryId);
+            if (activityCell) {
+                // Parse activity cell - it contains timestamp (32 bits) and user address
+                const slice = activityCell.beginParse();
+                const timestamp = slice.loadUint(32);
                 const userAddress = slice.loadAddress();
+                const elapsed = currentTime - timestamp; // 経過時間（秒）
                 
-                counters.push({ queryId, count, userAddress });
+                activities.push({ queryId, timestamp, userAddress, elapsed });
             }
         }
         
-        return counters;
+        return activities;
     }
 }

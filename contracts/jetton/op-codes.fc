@@ -5,5 +5,8 @@ int op::excesses() asm "0xd53276db PUSHINT";
 int op::burn() asm "0x595f07bc PUSHINT";
 int op::burn_notification() asm "0x7bdd97de PUSHINT";
 
+;; Gas handling
+int op::store_excess() asm "0x47657870 PUSHINT";  ;; "Gexp" in hex
+
 ;; Minter
 int op::mint() asm "21 PUSHINT";
