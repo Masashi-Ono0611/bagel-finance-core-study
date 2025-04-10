@@ -13,11 +13,35 @@ export async function run(provider: NetworkProvider) {
     // 2. Get vault address and fetch data
     const vaultAddr = await ui.inputAddress('Input vault address: ');
     const vault = provider.open(Vault.createFromAddress(vaultAddr));
-    const res = await vault.getVaultData();
+    
+    // デバッグ用の一時的な変数
+    let jettonData;
+    let vaultData;
+    
+    try {
+        // まず基本的なgetJettonDataを試してみる
+        console.log('Trying to get jetton data first...');
+        jettonData = await vault.getJettonData();
+        console.log('Jetton data:', jettonData);
+        
+        // 次にgetVaultDataを試す
+        console.log('\nNow trying to get vault data...');
+        vaultData = await vault.getVaultData();
+        console.log('Vault data:', vaultData);
+    } catch (error) {
+        console.error('Error fetching data:', error);
+        return;
+    }
+    
+    // データ取得に成功した場合のみ続行
+    if (!vaultData) {
+        console.error('Failed to get vault data');
+        return;
+    }
 
     console.log('\nCurrent Basket Configuration:');
     console.log('--------------------');
-    res.baskets.forEach((basket, index) => {
+    vaultData.baskets.forEach((basket, index) => {
         console.log(`\nBasket ${index + 1}:`);
         console.log(`weight: ${basket.weight}`);
         console.log(`jettonWalletAddress: ${basket.jettonWalletAddress}`);
@@ -27,7 +51,7 @@ export async function run(provider: NetworkProvider) {
     });
 
     const newBaskets = await Promise.all(
-        res.baskets.map(async (basket) => ({
+        vaultData.baskets.map(async (basket: any) => ({
             weight: basket.weight,
             jettonWalletAddress: await getJettonWalletAddr(tonClient, basket.jettonMasterAddress, vaultAddr),
             dedustPoolAddress: basket.dedustPoolAddress,
@@ -38,7 +62,7 @@ export async function run(provider: NetworkProvider) {
 
     console.log('\nNew Basket Configuration:');
     console.log('--------------------');
-    newBaskets.forEach((basket, index) => {
+    newBaskets.forEach((basket: any, index: number) => {
         console.log(`\nBasket ${index + 1}:`);
         console.log(`weight: ${basket.weight}`);
         console.log(`jettonWalletAddress: ${basket.jettonWalletAddress}`);
@@ -47,12 +71,12 @@ export async function run(provider: NetworkProvider) {
         console.log(`jettonMasterAddress: ${basket.jettonMasterAddress}`);
 
         // Highlight if there are any changes
-        if (basket.jettonWalletAddress.toString() !== res.baskets[index].jettonWalletAddress.toString()) {
+        if (basket.jettonWalletAddress.toString() !== vaultData.baskets[index].jettonWalletAddress.toString()) {
             console.log('\n*** jettonWalletAddress has been updated ***');
-            console.log(`Old: ${res.baskets[index].jettonWalletAddress}`);
+            console.log(`Old: ${vaultData.baskets[index].jettonWalletAddress}`);
             console.log(`New: ${basket.jettonWalletAddress}`);
         }
     });
 
-    await vault.sendChangeVaultData(provider.sender(), false, res.dedustTonVaultAddress, newBaskets);
+    await vault.sendChangeVaultData(provider.sender(), false, vaultData.dedustTonVaultAddress, newBaskets);
 }
