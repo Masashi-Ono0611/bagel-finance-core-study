@@ -219,5 +219,3 @@ slice addr_none() asm "b{00} PUSHSLICE";
         .end_cell();
     send_raw_message(msg, 0);
 }
-
-;; 注：この関数は上部で既に定義されているため削除（重複回避）

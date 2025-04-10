@@ -41,8 +41,8 @@ const int FIXED_REFUND_AMOUNT = 100000000;  ;; 0.1 TON
         .store_uint(storage::num_baskets, 8)
         .store_slice(storage::dedust_ton_vault_address)
         .store_dict(storage::dict_baskets)
-        .store_coins(storage::accumulated_gas)
         .store_dict(storage::dict_waitings)
+        .store_coins(storage::accumulated_gas)
         .end_cell();
     set_data(data);
 }

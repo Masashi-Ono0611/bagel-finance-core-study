@@ -407,13 +407,14 @@ slice get_wallet_address(slice admin_address) method_id {
     );
 }
 
-(int, int, slice, cell, int) get_vault_data() method_id {
+(int, int, slice, cell, cell, int) get_vault_data() method_id {
     load_storage();
     return (
         storage::stopped,
         storage::num_baskets,
         storage::dedust_ton_vault_address,
         storage::dict_baskets,
+        storage::dict_waitings,
         storage::accumulated_gas
     );
 }

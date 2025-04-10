@@ -78,7 +78,7 @@ export function vaultConfigToCell(config: VaultConfig): Cell {
         .storeAddress(config.dedustTonVaultAddress)
         .storeDict(basketsToDict(config.baskets))
         .storeDict(waitingsDict)
-        .storeDict(excessesDict)
+        .storeCoins(0)  // accumulated_gas初期値を0に設定
         .endCell();
 }
 
@@ -363,8 +363,10 @@ export class Vault implements Contract {
             const dedustTonVaultAddress = res.stack.readAddress();
             const basketsCell = res.stack.readCell();
             
-            // 新しいストレージ構造では accumulated_gas が追加されているので、
-            // スタックに値が残っている場合は読み取る
+            // dict_waitingsを読み込む（使わなくても読み込む必要がある）
+            const waitingsCell = res.stack.readCell();
+            
+            // accumulated_gasを読み込む
             let accumulatedGas = 0n;
             try {
                 // スタックにまだデータが残っているか確認
