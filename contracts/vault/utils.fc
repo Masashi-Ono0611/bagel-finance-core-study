@@ -14,20 +14,6 @@ int gas_burn_notification(int num_baskets) inline {
     return num_baskets * 2100000 + 4000000;
 }
 
-;; Function to send accumulated refund amount
-() send_accumulated_refund(int query_id, slice user_address) impure {
-    cell msg = begin_cell()
-        .store_uint(0x18, 6)
-        .store_slice(user_address)
-        .store_coins(storage::accumulated_gas)
-        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-        .store_uint(op::excesses_without_accumulated(), 32)
-        .store_uint(query_id, 64)
-        .end_cell();
-    
-    send_raw_message(msg, 2);  ;; mode = 2 (pay from contract balance, not from remaining gas)
-}
-
 ;; 超過ガス返還処理用の一定額を計算
 int gas_excesses() asm "10000000 PUSHINT";
 

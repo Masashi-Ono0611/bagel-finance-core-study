@@ -230,7 +230,7 @@ const int INDEX_UNIT = 1000000000;
             save_storage();
         }
         ;; ミント処理完了後、累積したガスを送信
-        send_accumulated_refund(query_id, user_address);
+        send_accumulated_gas(query_id, user_address);
         return ();
     }
 
