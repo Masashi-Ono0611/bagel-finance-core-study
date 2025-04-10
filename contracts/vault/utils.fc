@@ -220,16 +220,4 @@ slice addr_none() asm "b{00} PUSHSLICE";
     send_raw_message(msg, 0);
 }
 
-() send_excesses(int query_id, slice to_address, int value, int mode) impure {
-    if (value > min_excesses()) {
-        cell msg = begin_cell()
-            .store_uint(0x10, 6) ;; nobounce - int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool src:MsgAddress -> 011000
-            .store_slice(to_address)
-            .store_coins(value)
-            .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-            .store_uint(op::excesses_without_accumulated(), 32)
-            .store_uint(query_id, 64)
-            .end_cell();
-        send_raw_message(msg, mode);
-    }
-}
+;; 注：この関数は上部で既に定義されているため削除（重複回避）
