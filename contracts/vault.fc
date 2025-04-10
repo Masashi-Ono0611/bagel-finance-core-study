@@ -216,15 +216,11 @@ const int INDEX_UNIT = 1000000000;
                 i += 1;
             }
             storage::dict_waitings~udict_delete?(256, slice_hash(user_address));
-            
-            ;; ミント処理完了後、直接リファンドを送信
-            send_fixed_refund(query_id, user_address);
         }
 
         save_storage();
-        
-        ;; ミント後のリファンドは直接mint内で処理されるため、
-        ;; ここでは特別なガス処理は必要ない
+        ;; ミント処理完了後、直接リファンドを送信
+        send_fixed_refund(query_id, user_address);
         return ();
     }
 
