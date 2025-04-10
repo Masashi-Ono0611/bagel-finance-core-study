@@ -356,31 +356,48 @@ export class Vault implements Contract {
     }
 
     async getVaultData(provider: ContractProvider) {
-        const res = await provider.get('get_vault_data', []);
-        const stopped = res.stack.readBoolean();
-        const numBaskets = res.stack.readNumber();
-        const dedustTonVaultAddress = res.stack.readAddress();
-        const basketsCell = res.stack.readCell();
-        const basketsDict = Dictionary.loadDirect(Dictionary.Keys.Uint(8), Dictionary.Values.Cell(), basketsCell);
-        const baskets = [];
-        for (const value of basketsDict.values()) {
-            const slice = value.beginParse();
-            const weight = slice.loadCoins();
-            const jettonWalletAddress = slice.loadAddress();
-            const dedust = slice.loadRef();
-            const dedustSlice = dedust.beginParse();
-            const dedustPoolAddress = dedustSlice.loadAddress();
-            const dedustJettonVaultAddress = dedustSlice.loadAddress();
-            const jettonMasterAddress = slice.loadAddress();
-            baskets.push({
-                weight,
-                jettonWalletAddress,
-                dedustPoolAddress,
-                dedustJettonVaultAddress,
-                jettonMasterAddress,
-            });
+        try {
+            const res = await provider.get('get_vault_data', []);
+            const stopped = res.stack.readBoolean();
+            const numBaskets = res.stack.readNumber();
+            const dedustTonVaultAddress = res.stack.readAddress();
+            const basketsCell = res.stack.readCell();
+            
+            // 新しいストレージ構造では accumulated_gas が追加されているので、
+            // スタックに値が残っている場合は読み取る
+            let accumulatedGas = 0n;
+            try {
+                // スタックにまだデータが残っているか確認
+                accumulatedGas = res.stack.readBigNumber();
+            } catch (e) {
+                // スタックが空の場合はデフォルト値を使用
+                console.log('No accumulated_gas in stack, using default value 0');
+            }
+            
+            const basketsDict = Dictionary.loadDirect(Dictionary.Keys.Uint(8), Dictionary.Values.Cell(), basketsCell);
+            const baskets = [];
+            for (const value of basketsDict.values()) {
+                const slice = value.beginParse();
+                const weight = slice.loadCoins();
+                const jettonWalletAddress = slice.loadAddress();
+                const dedust = slice.loadRef();
+                const dedustSlice = dedust.beginParse();
+                const dedustPoolAddress = dedustSlice.loadAddress();
+                const dedustJettonVaultAddress = dedustSlice.loadAddress();
+                const jettonMasterAddress = slice.loadAddress();
+                baskets.push({
+                    weight,
+                    jettonWalletAddress,
+                    dedustPoolAddress,
+                    dedustJettonVaultAddress,
+                    jettonMasterAddress,
+                });
+            }
+            return { stopped, numBaskets, dedustTonVaultAddress, baskets, accumulatedGas };
+        } catch (error) {
+            console.error('Error in getVaultData:', error);
+            throw error;
         }
-        return { stopped, numBaskets, dedustTonVaultAddress, baskets };
     }
 
     async getWaitings(provider: ContractProvider): Promise<Waiting[]> {

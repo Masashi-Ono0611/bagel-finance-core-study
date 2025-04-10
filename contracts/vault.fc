@@ -389,7 +389,13 @@ const int INDEX_UNIT = 1000000000;
 
 (int, int, slice, cell, cell) get_jetton_data() method_id {
     load_storage();
-    return (storage::total_supply, -1, storage::admin_address, storage::content, storage::jetton_wallet_code);
+    return (
+        storage::total_supply, 
+        -1, 
+        storage::admin_address, 
+        storage::content, 
+        storage::jetton_wallet_code
+    );
 }
 
 slice get_wallet_address(slice admin_address) method_id {
@@ -401,13 +407,14 @@ slice get_wallet_address(slice admin_address) method_id {
     );
 }
 
-(int, int, slice, cell) get_vault_data() method_id {
+(int, int, slice, cell, int) get_vault_data() method_id {
     load_storage();
     return (
         storage::stopped,
         storage::num_baskets,
         storage::dedust_ton_vault_address,
-        storage::dict_baskets
+        storage::dict_baskets,
+        storage::accumulated_gas
     );
 }
 
