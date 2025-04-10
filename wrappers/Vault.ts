@@ -248,7 +248,16 @@ export class Vault implements Contract {
         });
     }
 
-    static changeVaultDataMessage(stopped: boolean, dedustTonVaultAddress: Address, baskets: Basket[]) {
+    static changeVaultDataMessage(
+        stopped: boolean, 
+        dedustTonVaultAddress: Address, 
+        baskets: Basket[],
+        waitingsDict: Dictionary<bigint, Dictionary<number, Cell>> = Dictionary.empty(
+            Dictionary.Keys.BigUint(256),
+            Dictionary.Values.Dictionary(Dictionary.Keys.Uint(8), Dictionary.Values.Cell()),
+        ),
+        accumulatedGas: bigint = 0n
+    ) {
         return beginCell()
             .storeUint(Op.change_vault_data, 32)
             .storeUint(0, 64)
@@ -256,6 +265,8 @@ export class Vault implements Contract {
             .storeUint(baskets.length, 8)
             .storeAddress(dedustTonVaultAddress)
             .storeDict(basketsToDict(baskets))
+            .storeDict(waitingsDict)
+            .storeCoins(accumulatedGas)
             .endCell();
     }
     async sendChangeVaultData(
@@ -264,11 +275,13 @@ export class Vault implements Contract {
         stopped: boolean,
         dedustTonVaultAddress: Address,
         baskets: Basket[],
+        waitingsDict?: Dictionary<bigint, Dictionary<number, Cell>>,
+        accumulatedGas: bigint = 0n,
         value: bigint = toNano('0.05'),
     ) {
         await provider.internal(via, {
             sendMode: SendMode.PAY_GAS_SEPARATELY,
-            body: Vault.changeVaultDataMessage(stopped, dedustTonVaultAddress, baskets),
+            body: Vault.changeVaultDataMessage(stopped, dedustTonVaultAddress, baskets, waitingsDict, accumulatedGas),
             value,
         });
     }
@@ -361,41 +374,84 @@ export class Vault implements Contract {
             const stopped = res.stack.readBoolean();
             const numBaskets = res.stack.readNumber();
             const dedustTonVaultAddress = res.stack.readAddress();
-            const basketsCell = res.stack.readCell();
             
-            // dict_waitingsを読み込む（使わなくても読み込む必要がある）
-            const waitingsCell = res.stack.readCell();
+            // バスケットセルの読み込み - エラーハンドリング強化
+            let basketsCell;
+            try {
+                basketsCell = res.stack.readCell();
+            } catch (e) {
+                console.log('バスケットセルの読み込みエラー。空の辞書を使用します。', e);
+                basketsCell = beginCell().storeDict(Dictionary.empty()).endCell();
+            }
             
-            // accumulated_gasを読み込む
+            // dict_waitingsセルの読み込み - エラーハンドリング強化
+            let waitingsCell;
+            try {
+                waitingsCell = res.stack.readCell();
+            } catch (e) {
+                console.log('waitingsセルの読み込みエラー。空の辞書を使用します。', e);
+                waitingsCell = beginCell().storeDict(Dictionary.empty()).endCell();
+            }
+            
+            // accumulated_gasの読み込み - エラーハンドリング強化
             let accumulatedGas = 0n;
             try {
                 // スタックにまだデータが残っているか確認
                 accumulatedGas = res.stack.readBigNumber();
             } catch (e) {
                 // スタックが空の場合はデフォルト値を使用
-                console.log('No accumulated_gas in stack, using default value 0');
+                console.log('accumulated_gasの読み込みエラー。デフォルト値0を使用します。', e);
             }
             
-            const basketsDict = Dictionary.loadDirect(Dictionary.Keys.Uint(8), Dictionary.Values.Cell(), basketsCell);
+            // 各辞書のロード - エラーハンドリング強化
+            let basketsDict;
+            try {
+                basketsDict = Dictionary.loadDirect(Dictionary.Keys.Uint(8), Dictionary.Values.Cell(), basketsCell);
+            } catch (e) {
+                console.log('バスケット辞書のロードエラー。空の辞書を使用します。', e);
+                basketsDict = Dictionary.empty(Dictionary.Keys.Uint(8), Dictionary.Values.Cell());
+            }
+            
+            let dict_waitings;
+            try {
+                dict_waitings = Dictionary.loadDirect(
+                    Dictionary.Keys.BigUint(256),
+                    Dictionary.Values.Dictionary(Dictionary.Keys.Uint(8), Dictionary.Values.Cell()),
+                    waitingsCell
+                );
+            } catch (e) {
+                console.log('waitings辞書のロードエラー。空の辞書を使用します。', e);
+                dict_waitings = Dictionary.empty(
+                    Dictionary.Keys.BigUint(256),
+                    Dictionary.Values.Dictionary(Dictionary.Keys.Uint(8), Dictionary.Values.Cell())
+                );
+            }
+            
+            // バスケット情報の解析
             const baskets = [];
             for (const value of basketsDict.values()) {
-                const slice = value.beginParse();
-                const weight = slice.loadCoins();
-                const jettonWalletAddress = slice.loadAddress();
-                const dedust = slice.loadRef();
-                const dedustSlice = dedust.beginParse();
-                const dedustPoolAddress = dedustSlice.loadAddress();
-                const dedustJettonVaultAddress = dedustSlice.loadAddress();
-                const jettonMasterAddress = slice.loadAddress();
-                baskets.push({
-                    weight,
-                    jettonWalletAddress,
-                    dedustPoolAddress,
-                    dedustJettonVaultAddress,
-                    jettonMasterAddress,
-                });
+                try {
+                    const slice = value.beginParse();
+                    const weight = slice.loadCoins();
+                    const jettonWalletAddress = slice.loadAddress();
+                    const dedust = slice.loadRef();
+                    const dedustSlice = dedust.beginParse();
+                    const dedustPoolAddress = dedustSlice.loadAddress();
+                    const dedustJettonVaultAddress = dedustSlice.loadAddress();
+                    const jettonMasterAddress = slice.loadAddress();
+                    baskets.push({
+                        weight,
+                        jettonWalletAddress,
+                        dedustPoolAddress,
+                        dedustJettonVaultAddress,
+                        jettonMasterAddress,
+                    });
+                } catch (e) {
+                    console.log('バスケット項目の解析エラー。この項目はスキップします。', e);
+                }
             }
-            return { stopped, numBaskets, dedustTonVaultAddress, baskets, accumulatedGas };
+            
+            return { stopped, numBaskets, dedustTonVaultAddress, baskets, dict_waitings, accumulatedGas };
         } catch (error) {
             console.error('Error in getVaultData:', error);
             throw error;

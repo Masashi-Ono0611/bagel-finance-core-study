@@ -78,5 +78,24 @@ export async function run(provider: NetworkProvider) {
         }
     });
 
-    await vault.sendChangeVaultData(provider.sender(), false, vaultData.dedustTonVaultAddress, newBaskets);
+    // dict_waitingsとaccumulated_gasを処理
+    // dict_waitingsは元のものを保持
+    const waitingsDict = vaultData.dict_waitings;
+    
+    // accumulated_gasも元の値を維持
+    const accumulatedGas = vaultData.accumulatedGas || 0n;
+    
+    console.log('\nMaintaining accumulated gas value:', accumulatedGas.toString());
+    
+    await vault.sendChangeVaultData(
+        provider.sender(), 
+        false, 
+        vaultData.dedustTonVaultAddress, 
+        newBaskets,
+        waitingsDict,
+        accumulatedGas
+    );
+    
+    console.log('\nVault data updated successfully!');
+    console.log('accumulated_gas value:', accumulatedGas.toString());
 }
