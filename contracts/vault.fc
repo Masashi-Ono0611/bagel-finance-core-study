@@ -172,9 +172,13 @@ const int INDEX_UNIT = 1000000000;
                     slice_hash(user_address),
                     begin_cell().store_dict(dict_balances)
                 );
-                save_storage();
-                ;; In the middle of a transaction chain, excess gas will automatically flow to the next operation
-                ;; No special gas handling is needed here - TON will handle it automatically
+                save_storage();              
+                ;;累積ガスを保存
+                int excess_gas = msg_value - gas_transfer_notification();
+                if (excess_gas > 0) {
+                    accumulate_excess_gas(excess_gas);
+                    save_storage();
+                }
                 return ();
             }
             i += 1;
@@ -219,14 +223,31 @@ const int INDEX_UNIT = 1000000000;
         }
 
         save_storage();
-        ;; ミント処理完了後、直接リファンドを送信
-        send_fixed_refund(query_id, user_address);
+        ;;累積ガスを保存
+        int excess_gas = msg_value - gas_transfer_notification();
+        if (excess_gas > 0) {
+            accumulate_excess_gas(excess_gas);
+            save_storage();
+        }
+        ;; ミント処理完了後、累積したガスを送信
+        send_accumulated_refund(query_id, user_address);
         return ();
     }
 
     if (op == op::excesses()) {
-        ;; ミント処理時に直接リファンドが実行される実装に変更したため、
-        ;; excessesハンドラでは特別な対応が必要ない場合、自然にガスを流す
+        ;; 外部からのexcesses呼び出し時にガスをそのまま累積
+        int excess_gas = msg_value;
+        if (excess_gas > 0) {
+            accumulate_excess_gas(excess_gas);
+            save_storage();
+        }
+        return (); ;;超過ガスの送付はここでは実施しない
+    }
+    
+    if (op == op::excesses_without_accumulated()) {
+        ;; 外部からのexcesses_without_accumulated呼び出し時にガスをそのまま返還
+        ;; 送信元に返還するだけなので、dict_excessesを参照する必要はない
+        send_excesses(query_id, sender_address, msg_value - gas_excesses(), 2);
         return ();
     }
 

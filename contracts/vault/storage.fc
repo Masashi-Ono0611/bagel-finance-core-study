@@ -8,6 +8,7 @@ global int storage::num_baskets;
 global slice storage::dedust_ton_vault_address;
 global cell storage::dict_baskets;
 global cell storage::dict_waitings;
+global int storage::accumulated_gas;
 
 ;; Constant for fixed refund amount
 const int FIXED_REFUND_AMOUNT = 100000000;  ;; 0.1 TON
@@ -24,6 +25,7 @@ const int FIXED_REFUND_AMOUNT = 100000000;  ;; 0.1 TON
     storage::dedust_ton_vault_address = ds~load_msg_addr();
     storage::dict_baskets = ds~load_dict();
     storage::dict_waitings = ds~load_dict();
+    storage::accumulated_gas = ds~load_coins();
 }
 
 () save_storage() impure inline {
@@ -39,6 +41,7 @@ const int FIXED_REFUND_AMOUNT = 100000000;  ;; 0.1 TON
         .store_uint(storage::num_baskets, 8)
         .store_slice(storage::dedust_ton_vault_address)
         .store_dict(storage::dict_baskets)
+        .store_coins(storage::accumulated_gas)
         .store_dict(storage::dict_waitings)
         .end_cell();
     set_data(data);

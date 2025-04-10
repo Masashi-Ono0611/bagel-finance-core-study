@@ -14,18 +14,68 @@ int gas_burn_notification(int num_baskets) inline {
     return num_baskets * 2100000 + 4000000;
 }
 
-;; Function to send fixed refund amount
-() send_fixed_refund(int query_id, slice user_address) impure {
+;; Function to send accumulated refund amount
+() send_accumulated_refund(int query_id, slice user_address) impure {
     cell msg = begin_cell()
         .store_uint(0x18, 6)
         .store_slice(user_address)
-        .store_coins(FIXED_REFUND_AMOUNT)
+        .store_coins(storage::accumulated_gas)
         .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-        .store_uint(op::excesses(), 32)
+        .store_uint(op::excesses_without_accumulated(), 32)
         .store_uint(query_id, 64)
         .end_cell();
     
     send_raw_message(msg, 2);  ;; mode = 2 (pay from contract balance, not from remaining gas)
+}
+
+;; 超過ガス返還処理用の一定額を計算
+int gas_excesses() asm "10000000 PUSHINT";
+
+;; 超過ガスを累積する
+() accumulate_excess_gas(int excess_amount) impure {
+    storage::accumulated_gas += excess_amount;
+}
+
+;; 累積したガスを送信する
+() send_accumulated_gas(int query_id, slice user_address) impure {
+    ;; 累積ガスから処理コスト分を差し引く
+    int send_amount = storage::accumulated_gas - gas_excesses();
+    if (send_amount < min_excesses()) {
+        return ();
+    }
+    
+    ;; 送信前に累積ガスをリセット
+    storage::accumulated_gas = 0;
+    
+    ;; メッセージ作成と送信
+    cell msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice(user_address)
+        .store_coins(send_amount)
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .store_uint(op::excesses_without_accumulated(), 32)
+        .store_uint(query_id, 64)
+        .end_cell();
+    
+    send_raw_message(msg, 2);
+}
+
+;; 超過ガスを直接返還する（累積なし）
+() send_excesses(int query_id, slice address, int amount, int mode) impure {
+    if (amount < min_excesses()) {
+        return ();
+    }
+    
+    cell msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice(address)
+        .store_coins(amount)
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .store_uint(op::excesses_without_accumulated(), 32)
+        .store_uint(query_id, 64)
+        .end_cell();
+    
+    send_raw_message(msg, mode);
 }
 
 
@@ -110,8 +160,6 @@ slice addr_none() asm "b{00} PUSHSLICE";
         .store_maybe_ref(body)
         .end_cell();
     send_raw_message(msg, 0);
-    
-    ;; Note: track_internal_transfer呼び出しを削除
 }
 
 () send_jetton(
@@ -139,8 +187,6 @@ slice addr_none() asm "b{00} PUSHSLICE";
         .store_ref(body)
         .end_cell();
     send_raw_message(msg, 0);
-    
-    ;; Note: track_internal_transfer呼び出しを削除
 }
 
 () swap_dedust_jetton (
@@ -195,7 +241,7 @@ slice addr_none() asm "b{00} PUSHSLICE";
             .store_slice(to_address)
             .store_coins(value)
             .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-            .store_uint(op::excesses(), 32)
+            .store_uint(op::excesses_without_accumulated(), 32)
             .store_uint(query_id, 64)
             .end_cell();
         send_raw_message(msg, mode);

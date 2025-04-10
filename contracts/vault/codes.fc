@@ -5,6 +5,7 @@ int op::send_admin_message() asm "0x78d5e3af PUSHINT";
 int op::change_code_and_data() asm "0xc4a0912f PUSHINT";
 int op::change_admin() asm "3 PUSHINT";
 int op::change_content() asm "4 PUSHINT";
+int op::excesses_without_accumulated() asm "0xd53276db PUSHINT";
 ;; DeDust
 int op::dedust_ton_swap() asm "0xea06185d PUSHINT";
 int op::dedust_jetton_swap() asm "0xe3a0d482 PUSHINT";
