@@ -10,8 +10,7 @@ global cell storage::dict_baskets;
 global cell storage::dict_waitings;
 global int storage::accumulated_gas;
 
-;; Constant for fixed refund amount
-const int FIXED_REFUND_AMOUNT = 100000000;  ;; 0.1 TON
+
 () load_storage() impure inline {
     slice ds = get_data().begin_parse();
     cell jetton = ds~load_ref();
