@@ -290,15 +290,10 @@ const int INDEX_UNIT = 1000000000;
             i += 1;
         }
 
-        slice response_address = in_msg_body~load_msg_addr();
-        if (response_address.preload_uint(2) != 0) {
-            send_excesses(
-                query_id,
-                response_address,
-                msg_value - gas - gas_burn_notification(storage::num_baskets),
-                2
-            );
-        }
+        ;; We don't need to read response_address or send excesses explicitly
+        ;; Excess gas will be automatically returned to the original sender at the end of the transaction chain
+        ;; Skip reading the response_address from the message body
+        in_msg_body~load_msg_addr();
         return ();
     }
 
