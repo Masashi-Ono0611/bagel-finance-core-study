@@ -69,6 +69,43 @@ export async function run(provider: NetworkProvider) {
     const jettonData = await vault.getJettonData();
     const network = provider.network() === 'custom' ? 'mainnet' : provider.network();
     const tonClient = getTonClient(network as 'mainnet' | 'testnet');
+    
+    // 現在のVaultデータを取得して表示
+    console.log('\nFetching current vault information...');
+    try {
+        const vaultData = await vault.getVaultData();
+        const accumulatedGasTON = Number(vaultData.accumulatedGas) / 1e9;
+        
+        console.log('\nCurrent Vault Information:');
+        console.log('--------------------');
+        console.log(`Status: ${vaultData.stopped ? 'Stopped' : 'Active'}`);
+        console.log(`Number of Baskets: ${vaultData.numBaskets}`);
+        console.log(`DeDust TON Vault Address: ${vaultData.dedustTonVaultAddress}`);
+        console.log(`Accumulated Gas: ${vaultData.accumulatedGas} nanoTON (${accumulatedGasTON.toFixed(9)} TON)`);
+        
+        // 待機リクエストの数を表示
+        const waitingKeys = Array.from(vaultData.dict_waitings.keys());
+        console.log(`Pending Requests: ${waitingKeys.length}`);
+        
+        // 現在のバスケット情報を表示
+        if (vaultData.baskets.length > 0) {
+            console.log('\nCurrent Baskets:');
+            for (let i = 0; i < vaultData.baskets.length; i++) {
+                const basket = vaultData.baskets[i];
+                console.log(`Basket ${i + 1}:`);
+                console.log(`  Weight: ${basket.weight}`);
+                console.log(`  Jetton Wallet: ${basket.jettonWalletAddress}`);
+                console.log(`  Jetton Master: ${basket.jettonMasterAddress}`);
+                console.log(`  DeDust Pool: ${basket.dedustPoolAddress}`);
+                console.log(`  DeDust Jetton Vault: ${basket.dedustJettonVaultAddress}`);
+            }
+        }
+        
+        console.log('\nPreparing to update Vault configuration...');
+    } catch (error) {
+        console.warn('Could not fetch current vault data:', error instanceof Error ? error.message : String(error));
+        console.log('Continuing with code and data update anyway...');
+    }
 
     // 3. DeDust TON Vault Address
     let dedustTonVaultAddress: Address;
@@ -101,17 +138,84 @@ export async function run(provider: NetworkProvider) {
         );
     }
 
-    // 5. Send Change Code and Data
-    await vault.sendChangeCodeAndData(
-        provider.sender(),
-        await compile('Vault'),
-        {
-            adminAddress: jettonData.adminAddress,
-            content: jettonData.content,
-            walletCode: jettonData.walletCode,
-            dedustTonVaultAddress,
-            baskets,
-        },
-        toNano('0.5'), // ガス量を0.5 TONに設定（デフォルト0.05 TON）
+    // 変更予定のデータを表示
+    console.log('\nNew Configuration to be Applied:');
+    console.log('--------------------');
+    console.log(`Admin Address: ${jettonData.adminAddress}`);
+    console.log(`DeDust TON Vault Address: ${dedustTonVaultAddress}`);
+    console.log(`Number of Baskets: ${baskets.length}`);
+    
+    for (let i = 0; i < baskets.length; i++) {
+        const basket = baskets[i];
+        console.log(`\nBasket ${i + 1}:`);
+        console.log(`  Weight: ${basket.weight}`);
+        console.log(`  Jetton Wallet: ${basket.jettonWalletAddress}`);
+        console.log(`  Jetton Master: ${basket.jettonMasterAddress}`);
+        console.log(`  DeDust Pool: ${basket.dedustPoolAddress}`);
+        console.log(`  DeDust Jetton Vault: ${basket.dedustJettonVaultAddress}`);
+    }
+    
+    // ガス量のカスタマイズオプション
+    let gasAmount = toNano('0.5'); // デフォルトは0.5 TON
+    
+    const customGas = await ui.choose(
+        '\nUse custom gas amount for this update?',
+        ['No (Use default 0.5 TON)', 'Yes (Custom)'],
+        (v) => v
     );
+    
+    if (customGas === 'Yes (Custom)') {
+        console.log('\nEnter custom gas amount:');
+        console.log('Examples:');
+        console.log('  1.0 = 1.0 TON');
+        console.log('  0.5 = 0.5 TON');
+        console.log('  0.2 = 0.2 TON');
+        const gasValue = parseFloat(await ui.input('Enter gas amount in TON: '));
+        
+        if (!isNaN(gasValue) && gasValue > 0) {
+            gasAmount = toNano(gasValue.toString());
+            console.log(`Using custom gas amount: ${gasValue} TON`);
+        } else {
+            console.log('Invalid gas amount, using default 0.5 TON');
+        }
+    } else {
+        console.log('Using default gas amount: 0.5 TON');
+    }
+    
+    // 実行確認
+    const confirmUpdate = await ui.choose(
+        '\nProceed with Vault update?',
+        ['Yes, update the Vault', 'No, cancel the operation'],
+        (v) => v
+    );
+    
+    if (confirmUpdate === 'No, cancel the operation') {
+        console.log('Operation cancelled by user.');
+        return;
+    }
+    
+    console.log('\nSending Change Code and Data transaction...');
+    
+    try {
+        // 5. Send Change Code and Data
+        await vault.sendChangeCodeAndData(
+            provider.sender(),
+            await compile('Vault'),
+            {
+                adminAddress: jettonData.adminAddress,
+                content: jettonData.content,
+                walletCode: jettonData.walletCode,
+                dedustTonVaultAddress,
+                baskets,
+            },
+            gasAmount
+        );
+        
+        console.log('\nTransaction sent successfully!');
+        console.log('The Vault code and data are being updated. This may take a few moments to complete.');
+        console.log('You can check the transaction status in TON Explorer.');
+    } catch (error) {
+        console.error('\nError during update:', error instanceof Error ? error.message : String(error));
+        console.log('Please check your wallet and try again.');
+    }
 }
