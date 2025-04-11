@@ -25,16 +25,16 @@ const templates: Record<string, VaultTemplate> = {
         baskets: [
             {
                 weight: '600000000',
-                jettonMasterAddress: 'EQDNhy-nxYFgUqzfUzImBEP67JqsyMIcyk2S5_RwNNEYku0k',
-                dedustPoolAddress: 'EQCHFiQM_TTSIiKhUCmWSN4aPSTqxJ4VSBEyDFaZ4izyq95Y',
-                dedustJettonVaultAddress: 'EQAYqo4u7VF0fa4DPAebk4g9lBytj2VFny7pzXR0trjtXQaO'
-            },
-            {
-                weight: '400000000',
                 jettonMasterAddress: 'EQDPdq8xjAhytYqfGSX8KcFWIReCufsB9Wdg0pLlYSO_h76w',
                 dedustPoolAddress: 'EQBWsAdyAg-8fs3G-m-eUBCXZuVaOldF5-tCMJBJzxQG7nLX',
                 dedustJettonVaultAddress: 'EQCRjILmJD0ZD7y6POFyicCx20PoypkEwHJ64AMJ7vwkXGjm'
-            }
+            }, //hTON
+            {
+                weight: '400000000',
+                jettonMasterAddress: 'EQAfF5j3JMIpZlLmACv7Ub7RH7WmiVMuV4ivcgNYHvNnqHTz',
+                dedustPoolAddress: 'EQCfYrAZUFLwFhUHWvU63PS0FBIh5CePWEho6T2TDgoGok50',
+                dedustJettonVaultAddress: 'EQBCbc0Yh06L98xloaIZvroIiZgA6pllMI0SBz3FsX69ATl3'
+            } //uTON
         ]
     },
     '3baskets index template': {
@@ -43,22 +43,22 @@ const templates: Record<string, VaultTemplate> = {
         baskets: [
             {
                 weight: '328092149',
-                jettonMasterAddress: 'EQDNhy-nxYFgUqzfUzImBEP67JqsyMIcyk2S5_RwNNEYku0k',
-                dedustPoolAddress: 'EQCHFiQM_TTSIiKhUCmWSN4aPSTqxJ4VSBEyDFaZ4izyq95Y',
-                dedustJettonVaultAddress: 'EQAYqo4u7VF0fa4DPAebk4g9lBytj2VFny7pzXR0trjtXQaO'
-            },
-            {
-                weight: '324698616',
                 jettonMasterAddress: 'EQDPdq8xjAhytYqfGSX8KcFWIReCufsB9Wdg0pLlYSO_h76w',
                 dedustPoolAddress: 'EQBWsAdyAg-8fs3G-m-eUBCXZuVaOldF5-tCMJBJzxQG7nLX',
                 dedustJettonVaultAddress: 'EQCRjILmJD0ZD7y6POFyicCx20PoypkEwHJ64AMJ7vwkXGjm'
-            },
+            }, //hTON
+            {
+                weight: '324698616',
+                jettonMasterAddress: 'EQCqC6EhRJ_tpWngKxL6dV0k6DSnRUrs9GSVkLbfdCqsj6TE',
+                dedustPoolAddress: 'EQBcXOgImwib9hI7vRLuBtTbMp3EES1rKiqyr8c2WtcRH2eO',
+                dedustJettonVaultAddress: 'EQB2PfLwzabJO1cMtarDdcIdW8l78IvH2Y8r396Fno-TNnf7'
+            },//STAKED
             {
                 weight: '347209234',
                 jettonMasterAddress: 'EQAfF5j3JMIpZlLmACv7Ub7RH7WmiVMuV4ivcgNYHvNnqHTz',
                 dedustPoolAddress: 'EQCfYrAZUFLwFhUHWvU63PS0FBIh5CePWEho6T2TDgoGok50',
                 dedustJettonVaultAddress: 'EQBCbc0Yh06L98xloaIZvroIiZgA6pllMI0SBz3FsX69ATl3'
-            }
+            }//uTON
         ]
     },
     // 他のテンプレートもここに追加できます
