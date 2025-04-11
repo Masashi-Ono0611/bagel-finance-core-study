@@ -1,10 +1,23 @@
+# Dependencies
 node_modules
+
+# Build outputs
 temp
 build
 dist
-.DS_Store
-.env
 
+# Environment variables and secrets
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Editor directories and files
 # VS Code
 .vscode/*
 .history/
@@ -12,6 +25,27 @@ dist
 
 # IDEA files
 .idea
+*.iml
 
 # VIM
 Session.vim
+*.swp
+*.swo
+
+# TON specific
+*.boc
+*.pk
+private-keys/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Coverage directory used by tools like istanbul
+coverage
+
+# Compiled binary addons
+build/Release
