@@ -63,6 +63,23 @@ export async function run(provider: NetworkProvider) {
 
     // Initialize Vault contract
     const vault = provider.open(Vault.createFromAddress(vaultAddr));
+    
+    // 転送前にコントラクトのガス情報を確認
+    console.log('\nFetching vault information before transfer...');
+    try {
+        const vaultData = await vault.getVaultData();
+        const accumulatedGasTON = Number(vaultData.accumulatedGas) / 1e9;
+        console.log('\nVault Gas Information:');
+        console.log('--------------------');
+        console.log(`Accumulated Gas: ${vaultData.accumulatedGas} nanoTON (${accumulatedGasTON.toFixed(9)} TON)`);
+        
+        // バスケット数を確認して表示
+        console.log(`Number of Baskets: ${vaultData.numBaskets}`);
+        console.log(`Vault Status: ${vaultData.stopped ? 'Stopped' : 'Active'}`);
+    } catch (error) {
+        console.warn('Could not fetch vault data:', error instanceof Error ? error.message : String(error));
+        console.log('Continuing with transfer operation anyway...');
+    }
 
     // Create transfer message
     const body = beginCell()
@@ -76,15 +93,48 @@ export async function run(provider: NetworkProvider) {
         .storeUint(0, 1)
         .endCell();
 
-    await vault.sendAdminMessage(
-        provider.sender(),
-        beginCell()
-            .storeUint(0x18, 6)
-            .storeAddress(jettonWalletAddr)
-            .storeCoins(50000000)
-            .storeUint(1, 107)
-            .storeRef(body)
-            .endCell(),
-        1,
+    // 転送用ガス量を設定またはカスタマイズするオプション
+    let transferGas = 50000000; // デフォルトは0.05 TON
+    
+    const customGas = await ui.choose(
+        'Use custom gas amount for transfer?',
+        ['No (Use default 0.05 TON)', 'Yes (Custom)'],
+        (v) => v
     );
+    
+    if (customGas === 'Yes (Custom)') {
+        console.log('\nEnter custom gas amount in nanoTON:');
+        console.log(' 100000000 = 0.1 TON');
+        console.log('  50000000 = 0.05 TON');
+        const gasAmount = parseInt(
+            await ui.input('Enter gas amount in nanoTON: ')
+        );
+        if (!isNaN(gasAmount) && gasAmount > 0) {
+            transferGas = gasAmount;
+        } else {
+            console.log('Invalid gas amount, using default 0.05 TON');
+        }
+    }
+    
+    console.log(`\nSending transfer with ${transferGas / 1e9} TON of gas...`);
+    console.log(`Transferring ${amount / 1e9} Jettons from ${vaultAddr.toString()} to ${toAddr.toString()}`);
+    
+    try {
+        await vault.sendAdminMessage(
+            provider.sender(),
+            beginCell()
+                .storeUint(0x18, 6)
+                .storeAddress(jettonWalletAddr)
+                .storeCoins(transferGas)
+                .storeUint(1, 107)
+                .storeRef(body)
+                .endCell(),
+            1,
+        );
+        console.log('\nTransfer message sent successfully!');
+        console.log('Note: Excess gas will be accumulated in the contract and can be returned later.');
+    } catch (error) {
+        console.error('\nError during transfer:', error instanceof Error ? error.message : String(error));
+        console.log('Please check the transaction in a TON explorer for more details.');
+    }
 }
