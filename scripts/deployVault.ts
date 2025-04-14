@@ -31,10 +31,10 @@ const templates: Record<string, VaultTemplate> = {
             }, //hTON
             {
                 weight: '400000000',
-                jettonMasterAddress: 'EQAfF5j3JMIpZlLmACv7Ub7RH7WmiVMuV4ivcgNYHvNnqHTz',
-                dedustPoolAddress: 'EQCfYrAZUFLwFhUHWvU63PS0FBIh5CePWEho6T2TDgoGok50',
-                dedustJettonVaultAddress: 'EQBCbc0Yh06L98xloaIZvroIiZgA6pllMI0SBz3FsX69ATl3'
-            } //uTON
+                jettonMasterAddress: 'EQB0SoxuGDx5qjVt0P_bPICFeWdFLBmVopHhjgfs0q-wsTON',
+                dedustPoolAddress: 'EQABt8YegyD7VJnZdFVwom8wwqp0E0X8tN2Y6NhrDmbrnSXP',
+                dedustJettonVaultAddress: 'EQCKfS6qMSigCc93CKzv-pBJow2w9TEyadDVZVIR8U-d-iVj'
+            } //wsTON
         ]
     },
     '3baskets index template': {
@@ -42,23 +42,23 @@ const templates: Record<string, VaultTemplate> = {
         decimals: '9',
         baskets: [
             {
-                weight: '328092149',
+                weight: '340000000',
                 jettonMasterAddress: 'EQDPdq8xjAhytYqfGSX8KcFWIReCufsB9Wdg0pLlYSO_h76w',
                 dedustPoolAddress: 'EQBWsAdyAg-8fs3G-m-eUBCXZuVaOldF5-tCMJBJzxQG7nLX',
                 dedustJettonVaultAddress: 'EQCRjILmJD0ZD7y6POFyicCx20PoypkEwHJ64AMJ7vwkXGjm'
             }, //hTON
             {
-                weight: '324698616',
+                weight: '330000000',
                 jettonMasterAddress: 'EQCqC6EhRJ_tpWngKxL6dV0k6DSnRUrs9GSVkLbfdCqsj6TE',
                 dedustPoolAddress: 'EQBcXOgImwib9hI7vRLuBtTbMp3EES1rKiqyr8c2WtcRH2eO',
                 dedustJettonVaultAddress: 'EQB2PfLwzabJO1cMtarDdcIdW8l78IvH2Y8r396Fno-TNnf7'
             },//STAKED
             {
-                weight: '347209234',
-                jettonMasterAddress: 'EQAfF5j3JMIpZlLmACv7Ub7RH7WmiVMuV4ivcgNYHvNnqHTz',
-                dedustPoolAddress: 'EQCfYrAZUFLwFhUHWvU63PS0FBIh5CePWEho6T2TDgoGok50',
-                dedustJettonVaultAddress: 'EQBCbc0Yh06L98xloaIZvroIiZgA6pllMI0SBz3FsX69ATl3'
-            }//uTON
+                weight: '330000000',
+                jettonMasterAddress: 'EQB0SoxuGDx5qjVt0P_bPICFeWdFLBmVopHhjgfs0q-wsTON',
+                dedustPoolAddress: 'EQABt8YegyD7VJnZdFVwom8wwqp0E0X8tN2Y6NhrDmbrnSXP',
+                dedustJettonVaultAddress: 'EQCKfS6qMSigCc93CKzv-pBJow2w9TEyadDVZVIR8U-d-iVj'
+            }//wsTON
         ]
     },
     // 他のテンプレートもここに追加できます
