@@ -5,7 +5,7 @@ global cell storage::jetton_wallet_code;
 
 global int storage::stopped;
 global int storage::num_baskets;
-global slice storage::dedust_ton_vault_address;
+global slice storage::dex_ton_vault_address; ;; DEX (DeDust/Stonfi) TON vault address
 global cell storage::dict_baskets;
 global cell storage::dict_waitings;
 global int storage::accumulated_gas;
@@ -21,7 +21,7 @@ global int storage::accumulated_gas;
     storage::jetton_wallet_code = sj~load_ref();
     storage::stopped = ds~load_bool();
     storage::num_baskets = ds~load_uint(8);
-    storage::dedust_ton_vault_address = ds~load_msg_addr();
+    storage::dex_ton_vault_address = ds~load_msg_addr();
     storage::dict_baskets = ds~load_dict();
     storage::dict_waitings = ds~load_dict();
     storage::accumulated_gas = ds~load_coins();
@@ -38,7 +38,7 @@ global int storage::accumulated_gas;
         .store_ref(jetton)
         .store_bool(storage::stopped)
         .store_uint(storage::num_baskets, 8)
-        .store_slice(storage::dedust_ton_vault_address)
+        .store_slice(storage::dex_ton_vault_address)
         .store_dict(storage::dict_baskets)
         .store_dict(storage::dict_waitings)
         .store_coins(storage::accumulated_gas)

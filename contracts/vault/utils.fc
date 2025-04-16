@@ -81,43 +81,81 @@ int gas_excesses() asm "10000000 PUSHINT";
 
 slice addr_none() asm "b{00} PUSHSLICE";
 
-() swap_dedust_ton (
+;; DEXタイプの定数
+int DEX_TYPE_DEDUST() asm "0 PUSHINT";
+int DEX_TYPE_STONFI() asm "1 PUSHINT";
+
+;; DEX TONスワップ関数（汎用化）
+() swap_dex_ton (
     int query_id,
     int swap_amount,
     int gas,
-    slice dedust_pool_address,
-    slice user_address
+    slice dex_pool_address,
+    slice user_address,
+    int dex_type
 ) impure {
     cell custom_payload = begin_cell()
         .store_slice(user_address)
         .end_cell();
-    cell swap_params = begin_cell()
-        .store_uint(now() + 5 * 60, 32) ;; deadline:Timestamp
-        .store_slice(my_address()) ;; recipient_addr:MsgAddressInt
-        .store_slice(addr_none()) ;; referral_addr:MsgAddress
-        .store_maybe_ref(custom_payload) ;; fulfill_payload:(Maybe ^Cell)
-        .store_maybe_ref(null()) ;; reject_payload:(Maybe ^Cell)
-        .end_cell();
-    cell body = begin_cell()
-        .store_uint(op::dedust_ton_swap(), 32)
-        .store_uint(query_id, 64) ;; query_id:int64
-        ;; _:SwapStep
-        .store_coins(swap_amount)
-        .store_slice(dedust_pool_address) ;; pool_addr:MsgAddressInt
-        .store_uint(0, 1) ;; kind:SwapKind
-        .store_coins(0) ;; limit:Coins
-        .store_maybe_ref(null()) ;; next
-        .store_ref(swap_params)
-        .end_cell();
+    
+    cell swap_params = null();
+    cell body = null();
+    
+    if (dex_type == DEX_TYPE_DEDUST()) {
+        ;; DeDust用のパラメータ生成
+        swap_params = begin_cell()
+            .store_uint(now() + 5 * 60, 32) ;; deadline:Timestamp
+            .store_slice(my_address()) ;; recipient_addr:MsgAddressInt
+            .store_slice(addr_none()) ;; referral_addr:MsgAddress
+            .store_maybe_ref(custom_payload) ;; fulfill_payload:(Maybe ^Cell)
+            .store_maybe_ref(null()) ;; reject_payload:(Maybe ^Cell)
+            .end_cell();
+            
+        body = begin_cell()
+            .store_uint(op::dedust_ton_swap(), 32)
+            .store_uint(query_id, 64) ;; query_id:int64
+            ;; _:SwapStep
+            .store_coins(swap_amount)
+            .store_slice(dex_pool_address) ;; pool_addr:MsgAddressInt
+            .store_uint(0, 1) ;; kind:SwapKind
+            .store_coins(0) ;; limit:Coins
+            .store_maybe_ref(null()) ;; next
+            .store_ref(swap_params)
+            .end_cell();
+    } else {
+        ;; Stonfi用のパラメータ生成
+        swap_params = begin_cell()
+            .store_uint(now() + 5 * 60, 32) ;; deadline:Timestamp
+            .store_slice(my_address()) ;; recipient_addr:MsgAddressInt
+            .store_slice(addr_none()) ;; referral_addr:MsgAddress
+            .store_maybe_ref(custom_payload) ;; fulfill_payload:(Maybe ^Cell)
+            .store_maybe_ref(null()) ;; reject_payload:(Maybe ^Cell)
+            .end_cell();
+            
+        body = begin_cell()
+            .store_uint(op::stonfi_ton_swap(), 32)
+            .store_uint(query_id, 64) ;; query_id:int64
+            ;; _:SwapStep - Stonfiの場合も同じパラメータ構造と仮定
+            .store_coins(swap_amount)
+            .store_slice(dex_pool_address) ;; pool_addr:MsgAddressInt
+            .store_uint(0, 1) ;; kind:SwapKind
+            .store_coins(0) ;; limit:Coins
+            .store_maybe_ref(null()) ;; next
+            .store_ref(swap_params)
+            .end_cell();
+    }
+    
     cell msg = begin_cell()
         .store_uint(0x18, 6)
-        .store_slice(storage::dedust_ton_vault_address)
+        .store_slice(storage::dex_ton_vault_address)
         .store_coins(swap_amount + gas)
         .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1)
         .store_maybe_ref(body)
         .end_cell();
     send_raw_message(msg, 0);
 }
+
+
 
 () mint_index(
     int query_id,
@@ -175,41 +213,70 @@ slice addr_none() asm "b{00} PUSHSLICE";
     send_raw_message(msg, 0);
 }
 
-() swap_dedust_jetton (
+;; DEX Jettonスワップ関数（汎用化）
+() swap_dex_jetton (
     int query_id,
     slice jetton_wallet_address,
     int gas,
     int swap_amount,
-    slice dedust_vault_address,
+    slice dex_vault_address,
     int forward_fee,
-    slice dedust_pool_address,
-    slice user_address
+    slice dex_pool_address,
+    slice user_address,
+    int dex_type
 ) impure {
-    cell swap_params = begin_cell()
-        .store_uint(now() + 60 * 5, 32) ;; deadline:Timestamp
-        .store_slice(user_address) ;; recipient_addr:MsgAddressInt
-        .store_slice(addr_none()) ;; referral_addr:MsgAddress
-        .store_maybe_ref(null()) ;; fulfill_payload:(Maybe ^Cell)
-        .store_maybe_ref(null()) ;; reject_payload:(Maybe ^Cell)
-        .end_cell();
-    cell forward_payload = begin_cell()
-        .store_uint(op::dedust_jetton_swap(), 32)
-        .store_slice(dedust_pool_address) ;; pool_addr:MsgAddressInt
-        .store_uint(0, 1) ;; kind:SwapKind
-        .store_coins(0) ;; limit:Coins
-        .store_maybe_ref(null()) ;; next
-        .store_ref(swap_params)
-        .end_cell();
+    cell swap_params = null();
+    cell forward_payload = null();
+    
+    if (dex_type == DEX_TYPE_DEDUST()) {
+        ;; DeDust用のパラメータ生成
+        swap_params = begin_cell()
+            .store_uint(now() + 60 * 5, 32) ;; deadline:Timestamp
+            .store_slice(user_address) ;; recipient_addr:MsgAddressInt
+            .store_slice(addr_none()) ;; referral_addr:MsgAddress
+            .store_maybe_ref(null()) ;; fulfill_payload:(Maybe ^Cell)
+            .store_maybe_ref(null()) ;; reject_payload:(Maybe ^Cell)
+            .end_cell();
+            
+        forward_payload = begin_cell()
+            .store_uint(op::dedust_jetton_swap(), 32)
+            .store_slice(dex_pool_address) ;; pool_addr:MsgAddressInt
+            .store_uint(0, 1) ;; kind:SwapKind
+            .store_coins(0) ;; limit:Coins
+            .store_maybe_ref(null()) ;; next
+            .store_ref(swap_params)
+            .end_cell();
+    } else {
+        ;; Stonfi用のパラメータ生成
+        swap_params = begin_cell()
+            .store_uint(now() + 60 * 5, 32) ;; deadline:Timestamp
+            .store_slice(user_address) ;; recipient_addr:MsgAddressInt
+            .store_slice(addr_none()) ;; referral_addr:MsgAddress
+            .store_maybe_ref(null()) ;; fulfill_payload:(Maybe ^Cell)
+            .store_maybe_ref(null()) ;; reject_payload:(Maybe ^Cell)
+            .end_cell();
+            
+        forward_payload = begin_cell()
+            .store_uint(op::stonfi_jetton_swap(), 32)
+            .store_slice(dex_pool_address) ;; pool_addr:MsgAddressInt
+            .store_uint(0, 1) ;; kind:SwapKind
+            .store_coins(0) ;; limit:Coins
+            .store_maybe_ref(null()) ;; next
+            .store_ref(swap_params)
+            .end_cell();
+    }
+    
     cell body = begin_cell()
         .store_uint(op::transfer(), 32)
         .store_uint(query_id, 64)
         .store_coins(swap_amount)
-        .store_slice(dedust_vault_address) ;; DeDust vault address
+        .store_slice(dex_vault_address) ;; DEX vault address
         .store_slice(user_address)
         .store_uint(0, 1)
         .store_coins(forward_fee)
         .store_maybe_ref(forward_payload)
         .end_cell();
+        
     cell msg = begin_cell()
         .store_uint(0x18, 6)
         .store_slice(jetton_wallet_address)
