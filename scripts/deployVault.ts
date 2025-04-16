@@ -29,7 +29,7 @@ interface VaultTemplate {
 
 // 定義済みテンプレート
 const templates: Record<string, VaultTemplate> = {
-    '2baskets dedust index mainnet': {
+    'DeDust mainnet 2baskets': {
         image: 'https://bagel-finance.s3.ap-northeast-1.amazonaws.com/images/ton-plus-index.png',
         decimals: '9',
         baskets: [
@@ -49,7 +49,7 @@ const templates: Record<string, VaultTemplate> = {
             } //wsTON
         ]
     },
-    '3baskets dedust index mainnet': {
+    'DeDust mainnet 3baskets': {
         image: 'https://bagel-finance.s3.ap-northeast-1.amazonaws.com/images/ton-plus-index.png',
         decimals: '9',
         baskets: [
@@ -76,8 +76,27 @@ const templates: Record<string, VaultTemplate> = {
             }//wsTON
         ]
     },
-    // 他のテンプレートもここに追加できます
-    '2baskets stonfi testnet': {
+    'DeDust testnet 2baskets': {
+        image: 'https://bagel-finance.s3.ap-northeast-1.amazonaws.com/images/ton-plus-index.png',
+        decimals: '9',
+        baskets: [
+            {
+                weight: '600000000',
+                jettonMasterAddress: 'kQDZF8LaqYGxBqACM-oA6w8cpIPwzMAimn4TFhNKsfPMtGHw',
+                dedustPoolAddress: 'EQBWsAdyAg-8fs3G-m-eUBCXZuVaOldF5-tCMJBJzxQG7nLX',//仮の値
+                dedustJettonVaultAddress: 'EQCRjILmJD0ZD7y6POFyicCx20PoypkEwHJ64AMJ7vwkXGjm',//仮の値
+                dexType: DexType.DEDUST
+            }, //APR14002
+            {
+                weight: '400000000',
+                jettonMasterAddress: 'kQDLvsZol3juZyOAVG8tWsJntOxeEZWEaWCbbSjYakQpuYN5',
+                dedustPoolAddress: 'EQABt8YegyD7VJnZdFVwom8wwqp0E0X8tN2Y6NhrDmbrnSXP',//仮の値
+                dedustJettonVaultAddress: 'EQCKfS6qMSigCc93CKzv-pBJow2w9TEyadDVZVIR8U-d-iVj',//仮の値
+                dexType: DexType.DEDUST
+            } //TRT
+        ]
+    },
+    'Stonfi testnet 2baskets': {
         image: 'https://bagel-finance.s3.ap-northeast-1.amazonaws.com/images/ton-plus-index.png',
         decimals: '9',
         baskets: [
@@ -95,6 +114,7 @@ const templates: Record<string, VaultTemplate> = {
             } //TRT
         ]
     },
+    // 他のテンプレートもここに追加できます
 };
 
 // 1. Jettonコンテンツ関連の関数
