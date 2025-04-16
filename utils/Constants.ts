@@ -50,12 +50,17 @@ export abstract class DexType {
 }
 
 // DEXアドレス定数
+// 特殊文字を含むアドレスを使用する場合の注意点：
+// 1. チェックサムエラーが発生する可能性があります
+// 2. 必ずAddressHelperクラスを使用して安全に解析してください
+// 3. 新しい特殊アドレスを追加する場合は、AddressHelperクラスのADDRESS_HEX_MAPに
+//    アドレスとそのバイナリ表現を追加してください
+
 export const DEDUST_ROUTER_MAINNET = 'EQDa4VOnTYlLvDJ0gZjNYm5PXfSmmtL6Vs6A_CZEtXCNICq_';
 export const DEDUST_ROUTER_TESTNET = 'EQDa4VOnTYlLvDJ0gZjNYm5PXfSmmtL6Vs6A_CZEtXCNICq_'; // DeDustはtestnet未対応なので仮にメインネットアドレスを使用
 
 export const STONFI_ROUTER_MAINNET = 'EQBfBWT7X2BHg9tXAxzhz2aKiNTU1tpt5NsiK0uSDW_YAJ67';
-
 // テストネット用のStonfiルーターアドレス
-// 特殊文字を含むアドレスはチェックサムエラーが発生する可能性があります
+// 特殊文字を含むアドレスの例（ハイフンを含む）
 // AddressHelperクラスを使用して安全に解析します
 export const STONFI_ROUTER_TESTNET = 'EQBsGx9ArADUrREB34W-ghgsCgBShvfUr4Jvlu-0KGc33Rbt';

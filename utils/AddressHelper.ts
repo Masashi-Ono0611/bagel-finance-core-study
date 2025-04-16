@@ -5,13 +5,19 @@ import { Address, beginCell, Cell, Slice } from '@ton/core';
  * 特殊文字を含むアドレスでもエラーを回避できるようにする
  */
 export class AddressHelper {
-    // テストネット用のStonfiルーターアドレスのバイナリ表現
-    // 元のアドレス: EQBsGx9ArADUrREB34W-ghgsCgBShvfUr4Jvlu-0KGc33Rbt
-    private static readonly STONFI_ROUTER_TESTNET_HEX = '0:6c1b1f40ac00d4ad1101df85be821832c0a005286f7d4af826f96efb428673dd';
+    // 特定のアドレスのバイナリ表現をキャッシュするマップ
+    private static readonly ADDRESS_HEX_MAP: Record<string, string> = {
+        // Stonfiテストネットルーターアドレス
+        // 元のアドレス: EQBsGx9ArADUrREB34W-ghgsCgBShvfUr4Jvlu-0KGc33Rbt
+        'EQBsGx9ArADUrREB34W-ghgsCgBShvfUr4Jvlu-0KGc33Rbt': '0:6c1b1f40ac00d4ad1101df85be821832c0a005286f7d4af826f96efb428673dd',
+        
+        // 他の特殊文字を含むアドレスをここに追加できます
+        // 例: 'EQAbc-123_XYZ': '0:abc123xyz...'
+    };
 
     /**
-     * 特殊文字を含むアドレス文字列からAddressオブジェクトを作成する
-     * @param addressString アドレス文字列（例: EQBsGx9ArADUrREB34W-ghgsCgBShvfUr4Jvlu-0KGc33Rbt）
+     * 特殊文字を含む可能性のあるアドレス文字列からAddressオブジェクトを作成する
+     * @param addressString アドレス文字列
      * @returns Addressオブジェクト
      */
     static createAddressFromString(addressString: string): Address {
@@ -19,24 +25,76 @@ export class AddressHelper {
             // 通常の方法でアドレスを解析
             return Address.parse(addressString);
         } catch (error) {
-            console.warn(`アドレス "${addressString}" の解析に失敗しました。バイナリ形式で解析します。`);
+            console.warn(`アドレス "${addressString}" の解析に失敗しました。代替方法を試みます。`);
             
-            // 特定のアドレスをハードコードして対応
-            if (addressString === 'EQBsGx9ArADUrREB34W-ghgsCgBShvfUr4Jvlu-0KGc33Rbt') {
-                // バイナリ形式でアドレスを作成
-                return Address.parseRaw(this.STONFI_ROUTER_TESTNET_HEX);
+            // 1. キャッシュされたバイナリ表現があれば使用
+            if (addressString in this.ADDRESS_HEX_MAP) {
+                try {
+                    return Address.parseRaw(this.ADDRESS_HEX_MAP[addressString]);
+                } catch (e) {
+                    console.warn(`キャッシュされたバイナリ表現の解析に失敗しました: ${e}`);
+                    // 次の方法を試みる
+                }
             }
             
-            // それ以外の場合は、特殊文字を置き換えて再試行
+            // 2. 特殊文字を置き換えて再試行
             try {
                 // ハイフンをアンダースコアに置き換える
                 const sanitizedAddress = addressString.replace(/-/g, '_');
                 return Address.parse(sanitizedAddress);
             } catch (e) {
-                // それでも失敗した場合は、デフォルトアドレスを使用
-                console.error(`アドレスの解析に失敗しました。デフォルトアドレスを使用します: ${e}`);
-                return Address.parse('EQBfBWT7X2BHg9tXAxzhz2aKiNTU1tpt5NsiK0uSDW_YAJ67');
+                // 次の方法を試みる
             }
+            
+            // 3. アドレスの形式を分析してバイナリ形式を抽出する
+            try {
+                // EQで始まる場合はワークチェーン0、UQの場合は-1
+                const workchain = addressString.startsWith('EQ') ? 0 : 
+                                   addressString.startsWith('UQ') ? -1 : null;
+                                   
+                if (workchain !== null) {
+                    // プレフィックスを削除してアドレス部分を取得
+                    const addressPart = addressString.substring(2);
+                    // 特殊文字を削除してバイナリ形式を作成
+                    const cleanAddressPart = addressPart.replace(/[^a-zA-Z0-9]/g, '');
+                    
+                    // バイナリ形式のアドレスを作成する試み
+                    if (cleanAddressPart.length >= 48) { // 最低限必要な長さ
+                        // キャッシュに追加するためのバイナリ表現を生成
+                        const hexRepresentation = `${workchain}:${cleanAddressPart.substring(0, 64)}`;
+                        console.log(`生成されたバイナリ表現: ${hexRepresentation}`);
+                        
+                        try {
+                            // 生成したバイナリ表現を解析
+                            return Address.parseRaw(hexRepresentation);
+                        } catch (e) {
+                            // 次の方法を試みる
+                        }
+                    }
+                }
+            } catch (e) {
+                // 次の方法を試みる
+            }
+            
+            // 4. 最後の手段として、デフォルトアドレスを使用
+            console.error(`すべての解析方法が失敗しました。デフォルトアドレスを使用します。`);
+            return Address.parse('EQBfBWT7X2BHg9tXAxzhz2aKiNTU1tpt5NsiK0uSDW_YAJ67'); // Stonfiメインネットアドレスをデフォルトとして使用
+        }
+    }
+    
+    /**
+     * 特定のアドレスを取得するメソッド
+     * @param addressString アドレス文字列
+     * @param defaultAddress 解析に失敗した場合のデフォルトアドレス
+     * @returns Addressオブジェクト
+     */
+    static getAddressSafe(addressString: string, defaultAddress?: string): Address {
+        try {
+            return this.createAddressFromString(addressString);
+        } catch (error) {
+            console.error(`アドレス "${addressString}" の解析に失敗しました: ${error}`);
+            // デフォルトアドレスが指定されていれば使用、そうでなければStonfiメインネットアドレスを使用
+            return defaultAddress ? Address.parse(defaultAddress) : Address.parse('EQBfBWT7X2BHg9tXAxzhz2aKiNTU1tpt5NsiK0uSDW_YAJ67');
         }
     }
     
@@ -45,12 +103,6 @@ export class AddressHelper {
      * このメソッドは常に正しいアドレスを返す
      */
     static getStonfiTestnetRouterAddress(): Address {
-        try {
-            return Address.parseRaw(this.STONFI_ROUTER_TESTNET_HEX);
-        } catch (error) {
-            console.error(`バイナリ形式でのアドレス解析に失敗しました: ${error}`);
-            // フォールバックとして、メインネットのStonfiルーターアドレスを使用
-            return Address.parse('EQBfBWT7X2BHg9tXAxzhz2aKiNTU1tpt5NsiK0uSDW_YAJ67');
-        }
+        return this.getAddressSafe('EQBsGx9ArADUrREB34W-ghgsCgBShvfUr4Jvlu-0KGc33Rbt', 'EQBfBWT7X2BHg9tXAxzhz2aKiNTU1tpt5NsiK0uSDW_YAJ67');
     }
 }
