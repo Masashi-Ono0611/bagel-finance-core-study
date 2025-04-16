@@ -54,7 +54,8 @@ export const DEDUST_ROUTER_MAINNET = 'EQDa4VOnTYlLvDJ0gZjNYm5PXfSmmtL6Vs6A_CZEtX
 export const DEDUST_ROUTER_TESTNET = 'EQDa4VOnTYlLvDJ0gZjNYm5PXfSmmtL6Vs6A_CZEtXCNICq_'; // DeDustはtestnet未対応なので仮にメインネットアドレスを使用
 
 export const STONFI_ROUTER_MAINNET = 'EQBfBWT7X2BHg9tXAxzhz2aKiNTU1tpt5NsiK0uSDW_YAJ67';
+
 // テストネット用のStonfiルーターアドレス
-// 元のアドレスに特殊文字が含まれていたため、チェックサムエラーが発生していました
-// テストネット用にメインネットアドレスを使用します
-export const STONFI_ROUTER_TESTNET = 'EQBfBWT7X2BHg9tXAxzhz2aKiNTU1tpt5NsiK0uSDW_YAJ67';
+// 特殊文字を含むアドレスはチェックサムエラーが発生する可能性があります
+// AddressHelperクラスを使用して安全に解析します
+export const STONFI_ROUTER_TESTNET = 'EQBsGx9ArADUrREB34W-ghgsCgBShvfUr4Jvlu-0KGc33Rbt';

@@ -2,6 +2,7 @@ import { Address, Cell, toNano } from '@ton/core';
 import { compile, NetworkProvider } from '@ton/blueprint';
 import { Vault } from '../wrappers/Vault';
 import { jettonContentToCell, onchainContentToCell } from '../utils/JettonHelpers';
+import { AddressHelper } from '../utils/AddressHelper';
 import { 
     DexType, 
     DEDUST_ROUTER_MAINNET, 
@@ -294,7 +295,9 @@ export async function run(provider: NetworkProvider) {
     } else if (primaryDexType === DexType.STONFI) {
         // Stonfiの場合
         if (network === 'testnet') {
-            dexTonVaultAddress = Address.parse(STONFI_ROUTER_TESTNET);
+            // 特殊文字を含むアドレスの場合は、AddressHelperを使用して安全に解析
+            // バイナリ形式でアドレスを取得
+            dexTonVaultAddress = AddressHelper.getStonfiTestnetRouterAddress();
             console.log(`テストネットのStonFiルーターを使用します: ${STONFI_ROUTER_TESTNET}`);
         } else {
             dexTonVaultAddress = Address.parse(STONFI_ROUTER_MAINNET);
