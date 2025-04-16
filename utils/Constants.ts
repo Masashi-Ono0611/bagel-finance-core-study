@@ -19,8 +19,14 @@ export abstract class Op {
     static change_vault_data = 0xf1b32984;
     static send_admin_message = 0x78d5e3af;
     static change_code_and_data = 0xc4a0912f;
+    
+    // DEX operations
+    // DeDust
     static dedust_ton_swap = 0xea06185d;
     static dedust_jetton_swap = 0xe3a0d482;
+    // Stonfi
+    static stonfi_ton_swap = 0xea06185e; // DeDustのハッシュ+1
+    static stonfi_jetton_swap = 0xe3a0d483; // DeDustのハッシュ+1
 }
 
 export abstract class Errors {
@@ -35,4 +41,10 @@ export abstract class Errors {
     static invalid_vault_data = 405;
     static unexpected = 999;
     static wrong_op = 0xffff;
+}
+
+// DEXタイプの定数
+export abstract class DexType {
+    static DEDUST = 0;
+    static STONFI = 1;
 }

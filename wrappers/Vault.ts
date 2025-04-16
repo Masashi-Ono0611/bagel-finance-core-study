@@ -18,6 +18,7 @@ export type Basket = {
     dedustPoolAddress: Address;
     dedustJettonVaultAddress: Address;
     jettonMasterAddress: Address;
+    dexType?: number; // DEXタイプ（0=DeDust, 1=Stonfi）
 };
 
 export type Waiting = {
@@ -34,7 +35,7 @@ type VaultConfig = {
     adminAddress: Address;
     content: Cell;
     walletCode: Cell;
-    dedustTonVaultAddress: Address;
+    dexTonVaultAddress: Address; // DEX（DeDust/Stonfi）TON vault address
     baskets: Basket[];
 };
 
@@ -42,16 +43,24 @@ function basketsToDict(baskets: Basket[]) {
     const dictBaskets = Dictionary.empty(Dictionary.Keys.Uint(8), Dictionary.Values.Cell());
     for (let i = 0; i < baskets.length; i++) {
         const basket = baskets[i];
-        const dedust = beginCell()
+        
+        // DEXタイプの設定（指定がない場合はデフォルトで0（DeDust））
+        const dexType = basket.dexType !== undefined ? basket.dexType : 0;
+        
+        // DEX情報を含むセルを作成
+        const dexData = beginCell()
+            // DEXタイプを2ビットで格納（0=DeDust, 1=Stonfi）
+            .storeUint(dexType, 2)
             .storeAddress(basket.dedustPoolAddress)
             .storeAddress(basket.dedustJettonVaultAddress)
             .endCell();
+            
         dictBaskets.set(
             i,
             beginCell()
                 .storeCoins(basket.weight)
                 .storeAddress(basket.jettonWalletAddress)
-                .storeRef(dedust)
+                .storeRef(dexData) // DEXデータを参照として格納
                 .storeAddress(basket.jettonMasterAddress)
                 .endCell(),
         );
@@ -75,7 +84,7 @@ export function vaultConfigToCell(config: VaultConfig): Cell {
         .storeRef(jettonData)
         .storeBit(true)
         .storeUint(config.baskets.length, 8)
-        .storeAddress(config.dedustTonVaultAddress)
+        .storeAddress(config.dexTonVaultAddress)
         .storeDict(basketsToDict(config.baskets))
         .storeDict(waitingsDict)
         .storeCoins(0)  // accumulated_gas初期値を0に設定
@@ -250,7 +259,7 @@ export class Vault implements Contract {
 
     static changeVaultDataMessage(
         stopped: boolean, 
-        dedustTonVaultAddress: Address, 
+        dexTonVaultAddress: Address, 
         baskets: Basket[],
         waitingsDict: Dictionary<bigint, Dictionary<number, Cell>> = Dictionary.empty(
             Dictionary.Keys.BigUint(256),
@@ -263,7 +272,7 @@ export class Vault implements Contract {
             .storeUint(0, 64)
             .storeBit(stopped)
             .storeUint(baskets.length, 8)
-            .storeAddress(dedustTonVaultAddress)
+            .storeAddress(dexTonVaultAddress)
             .storeDict(basketsToDict(baskets))
             .storeDict(waitingsDict)
             .storeCoins(accumulatedGas)
@@ -273,7 +282,7 @@ export class Vault implements Contract {
         provider: ContractProvider,
         via: Sender,
         stopped: boolean,
-        dedustTonVaultAddress: Address,
+        dexTonVaultAddress: Address,
         baskets: Basket[],
         waitingsDict?: Dictionary<bigint, Dictionary<number, Cell>>,
         accumulatedGas: bigint = 0n,
@@ -281,7 +290,7 @@ export class Vault implements Contract {
     ) {
         await provider.internal(via, {
             sendMode: SendMode.PAY_GAS_SEPARATELY,
-            body: Vault.changeVaultDataMessage(stopped, dedustTonVaultAddress, baskets, waitingsDict, accumulatedGas),
+            body: Vault.changeVaultDataMessage(stopped, dexTonVaultAddress, baskets, waitingsDict, accumulatedGas),
             value,
         });
     }
@@ -373,7 +382,7 @@ export class Vault implements Contract {
             const res = await provider.get('get_vault_data', []);
             const stopped = res.stack.readBoolean();
             const numBaskets = res.stack.readNumber();
-            const dedustTonVaultAddress = res.stack.readAddress();
+            const dexTonVaultAddress = res.stack.readAddress();
             
             // バスケットセルの読み込み - エラーハンドリング強化
             let basketsCell;
@@ -451,7 +460,7 @@ export class Vault implements Contract {
                 }
             }
             
-            return { stopped, numBaskets, dedustTonVaultAddress, baskets, dict_waitings, accumulatedGas };
+            return { stopped, numBaskets, dexTonVaultAddress, baskets, dict_waitings, accumulatedGas };
         } catch (error) {
             console.error('Error in getVaultData:', error);
             throw error;

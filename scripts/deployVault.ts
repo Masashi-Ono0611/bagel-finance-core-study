@@ -2,6 +2,7 @@ import { Address, Cell, toNano } from '@ton/core';
 import { Vault } from '../wrappers/Vault';
 import { compile, NetworkProvider } from '@ton/blueprint';
 import { jettonContentToCell, onchainContentToCell } from '../utils/JettonHelpers';
+import { DexType } from '../utils/Constants';
 
 // バスケットテンプレート定義
 interface BasketTemplate {
@@ -9,6 +10,7 @@ interface BasketTemplate {
     jettonMasterAddress: string;
     dedustPoolAddress: string;
     dedustJettonVaultAddress: string;
+    dexType?: number; // DEXタイプ（0=DeDust, 1=Stonfi）
 }
 
 interface VaultTemplate {
@@ -27,13 +29,15 @@ const templates: Record<string, VaultTemplate> = {
                 weight: '600000000',
                 jettonMasterAddress: 'EQDPdq8xjAhytYqfGSX8KcFWIReCufsB9Wdg0pLlYSO_h76w',
                 dedustPoolAddress: 'EQBWsAdyAg-8fs3G-m-eUBCXZuVaOldF5-tCMJBJzxQG7nLX',
-                dedustJettonVaultAddress: 'EQCRjILmJD0ZD7y6POFyicCx20PoypkEwHJ64AMJ7vwkXGjm'
+                dedustJettonVaultAddress: 'EQCRjILmJD0ZD7y6POFyicCx20PoypkEwHJ64AMJ7vwkXGjm',
+                dexType: DexType.DEDUST
             }, //hTON
             {
                 weight: '400000000',
                 jettonMasterAddress: 'EQB0SoxuGDx5qjVt0P_bPICFeWdFLBmVopHhjgfs0q-wsTON',
                 dedustPoolAddress: 'EQABt8YegyD7VJnZdFVwom8wwqp0E0X8tN2Y6NhrDmbrnSXP',
-                dedustJettonVaultAddress: 'EQCKfS6qMSigCc93CKzv-pBJow2w9TEyadDVZVIR8U-d-iVj'
+                dedustJettonVaultAddress: 'EQCKfS6qMSigCc93CKzv-pBJow2w9TEyadDVZVIR8U-d-iVj',
+                dexType: DexType.DEDUST
             } //wsTON
         ]
     },
@@ -45,19 +49,22 @@ const templates: Record<string, VaultTemplate> = {
                 weight: '340000000',
                 jettonMasterAddress: 'EQDPdq8xjAhytYqfGSX8KcFWIReCufsB9Wdg0pLlYSO_h76w',
                 dedustPoolAddress: 'EQBWsAdyAg-8fs3G-m-eUBCXZuVaOldF5-tCMJBJzxQG7nLX',
-                dedustJettonVaultAddress: 'EQCRjILmJD0ZD7y6POFyicCx20PoypkEwHJ64AMJ7vwkXGjm'
+                dedustJettonVaultAddress: 'EQCRjILmJD0ZD7y6POFyicCx20PoypkEwHJ64AMJ7vwkXGjm',
+                dexType: DexType.DEDUST
             }, //hTON
             {
                 weight: '330000000',
                 jettonMasterAddress: 'EQCqC6EhRJ_tpWngKxL6dV0k6DSnRUrs9GSVkLbfdCqsj6TE',
                 dedustPoolAddress: 'EQBcXOgImwib9hI7vRLuBtTbMp3EES1rKiqyr8c2WtcRH2eO',
-                dedustJettonVaultAddress: 'EQB2PfLwzabJO1cMtarDdcIdW8l78IvH2Y8r396Fno-TNnf7'
+                dedustJettonVaultAddress: 'EQB2PfLwzabJO1cMtarDdcIdW8l78IvH2Y8r396Fno-TNnf7',
+                dexType: DexType.DEDUST
             },//STAKED
             {
                 weight: '330000000',
                 jettonMasterAddress: 'EQB0SoxuGDx5qjVt0P_bPICFeWdFLBmVopHhjgfs0q-wsTON',
                 dedustPoolAddress: 'EQABt8YegyD7VJnZdFVwom8wwqp0E0X8tN2Y6NhrDmbrnSXP',
-                dedustJettonVaultAddress: 'EQCKfS6qMSigCc93CKzv-pBJow2w9TEyadDVZVIR8U-d-iVj'
+                dedustJettonVaultAddress: 'EQCKfS6qMSigCc93CKzv-pBJow2w9TEyadDVZVIR8U-d-iVj',
+                dexType: DexType.DEDUST
             }//wsTON
         ]
     },
@@ -103,9 +110,21 @@ async function inputBasket(ui: any, index: number) {
         weightInput = await ui.input(`Enter weight for Basket ${index + 1}: `);
     }
     const weight = BigInt(weightInput);
+    
+    // DEXタイプの選択
+    const dexTypeChoice = await ui.choose(
+        `Select DEX type for Basket ${index + 1}:`,
+        ['DeDust', 'Stonfi'],
+        (v: string) => v
+    );
+    const dexType = dexTypeChoice === 'DeDust' ? DexType.DEDUST : DexType.STONFI;
+    
+    // DEXタイプに応じたプロンプトメッセージを変更
+    const dexName = dexType === DexType.DEDUST ? 'DeDust' : 'Stonfi';
+    
     const jettonMasterAddress = Address.parse(await ui.input(`Enter Jetton Master Address for Basket ${index + 1}: `));
-    const dedustPoolAddress = Address.parse(await ui.input(`Enter DeDust Pool Address for Basket ${index + 1}: `));
-    const dedustJettonVaultAddress = Address.parse(await ui.input(`Enter DeDust Jetton Vault Address for Basket ${index + 1}: `));
+    const dedustPoolAddress = Address.parse(await ui.input(`Enter ${dexName} Pool Address for Basket ${index + 1}: `));
+    const dedustJettonVaultAddress = Address.parse(await ui.input(`Enter ${dexName} Jetton Vault Address for Basket ${index + 1}: `));
 
     // Note: jettonWalletAddress will be determined during initVault
     // Here we use a placeholder address that will be replaced
@@ -116,7 +135,8 @@ async function inputBasket(ui: any, index: number) {
         jettonWalletAddress: placeholderWalletAddress, // This will be set during initVault
         dedustPoolAddress,
         dedustJettonVaultAddress,
-        jettonMasterAddress
+        jettonMasterAddress,
+        dexType
     };
 }
 
@@ -151,12 +171,16 @@ async function getBaskets(ui: any, templateData?: VaultTemplate) {
             // プレースホルダーウォレットアドレス
             const placeholderWalletAddress = Address.parse('EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c');
             
+            // DEXタイプの設定（テンプレートに指定がない場合はデフォルトでDeDust）
+            const dexType = templateBasket.dexType !== undefined ? templateBasket.dexType : DexType.DEDUST;
+            
             baskets.push({
                 weight,
                 jettonWalletAddress: placeholderWalletAddress,
                 dedustPoolAddress,
                 dedustJettonVaultAddress,
-                jettonMasterAddress
+                jettonMasterAddress,
+                dexType
             });
         }
         
@@ -199,7 +223,7 @@ export async function run(provider: NetworkProvider) {
                 adminAddress: provider.sender()?.address!,
                 content,
                 walletCode: await compile('JettonWallet'),
-                dedustTonVaultAddress: Address.parse('EQDa4VOnTYlLvDJ0gZjNYm5PXfSmmtL6Vs6A_CZEtXCNICq_'),
+                dexTonVaultAddress: Address.parse('EQDa4VOnTYlLvDJ0gZjNYm5PXfSmmtL6Vs6A_CZEtXCNICq_'),
                 baskets,
             },
             await compile('Vault'),
