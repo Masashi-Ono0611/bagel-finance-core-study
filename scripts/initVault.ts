@@ -2,6 +2,7 @@ import { Vault } from '../wrappers/Vault';
 import { NetworkProvider } from '@ton/blueprint';
 import { getTonClient } from '../utils/TonClient';
 import { getJettonWalletAddr } from '../utils/Common';
+import { DexType } from '../utils/Constants';
 
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui();
@@ -41,13 +42,14 @@ export async function run(provider: NetworkProvider) {
 
     console.log('\nCurrent Basket Configuration:');
     console.log('--------------------');
-    vaultData.baskets.forEach((basket, index) => {
+    vaultData.baskets.forEach((basket: any, index) => {
         console.log(`\nBasket ${index + 1}:`);
         console.log(`weight: ${basket.weight}`);
         console.log(`jettonWalletAddress: ${basket.jettonWalletAddress}`);
         console.log(`dedustPoolAddress: ${basket.dedustPoolAddress}`);
         console.log(`dedustJettonVaultAddress: ${basket.dedustJettonVaultAddress}`);
         console.log(`jettonMasterAddress: ${basket.jettonMasterAddress}`);
+        console.log(`dexType: ${basket.dexType !== undefined ? (basket.dexType === DexType.DEDUST ? 'DeDust' : basket.dexType === DexType.STONFI ? 'Stonfi' : 'Unknown') : 'DeDust (default)'}`);
     });
 
     const newBaskets = await Promise.all(
@@ -57,6 +59,7 @@ export async function run(provider: NetworkProvider) {
             dedustPoolAddress: basket.dedustPoolAddress,
             dedustJettonVaultAddress: basket.dedustJettonVaultAddress,
             jettonMasterAddress: basket.jettonMasterAddress,
+            dexType: basket.dexType !== undefined ? basket.dexType : DexType.DEDUST, // DEXタイプがない場合はデフォルトでDeDust
         })),
     );
 
@@ -69,11 +72,12 @@ export async function run(provider: NetworkProvider) {
         console.log(`dedustPoolAddress: ${basket.dedustPoolAddress}`);
         console.log(`dedustJettonVaultAddress: ${basket.dedustJettonVaultAddress}`);
         console.log(`jettonMasterAddress: ${basket.jettonMasterAddress}`);
+        console.log(`dexType: ${basket.dexType !== undefined ? (basket.dexType === DexType.DEDUST ? 'DeDust' : basket.dexType === DexType.STONFI ? 'Stonfi' : 'Unknown') : 'DeDust (default)'}`);
 
         // Highlight if there are any changes
-        if (basket.jettonWalletAddress.toString() !== vaultData.baskets[index].jettonWalletAddress.toString()) {
+        if (basket.jettonWalletAddress.toString() !== (vaultData.baskets[index] as any).jettonWalletAddress.toString()) {
             console.log('\n*** jettonWalletAddress has been updated ***');
-            console.log(`Old: ${vaultData.baskets[index].jettonWalletAddress}`);
+            console.log(`Old: ${(vaultData.baskets[index] as any).jettonWalletAddress}`);
             console.log(`New: ${basket.jettonWalletAddress}`);
         }
     });
@@ -90,7 +94,7 @@ export async function run(provider: NetworkProvider) {
     await vault.sendChangeVaultData(
         provider.sender(), 
         false, 
-        vaultData.dedustTonVaultAddress, 
+        vaultData.dexTonVaultAddress, // dedustTonVaultAddressからdexTonVaultAddressに変更
         newBaskets,
         waitingsDict,
         accumulatedGas

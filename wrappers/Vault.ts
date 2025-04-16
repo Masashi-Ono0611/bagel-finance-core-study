@@ -443,17 +443,34 @@ export class Vault implements Contract {
                     const slice = value.beginParse();
                     const weight = slice.loadCoins();
                     const jettonWalletAddress = slice.loadAddress();
-                    const dedust = slice.loadRef();
-                    const dedustSlice = dedust.beginParse();
-                    const dedustPoolAddress = dedustSlice.loadAddress();
-                    const dedustJettonVaultAddress = dedustSlice.loadAddress();
+                    const dexData = slice.loadRef();
+                    let dexSlice = dexData.beginParse(); // letで宣言して再代入可能にする
+                    
+                    // DEXタイプ情報を読み込む
+                    let dexType;
+                    try {
+                        // DEXタイプを2ビットで読み込む
+                        dexType = dexSlice.loadUint(2);
+                    } catch (e) {
+                        // 古いフォーマットの場合はデフォルトでDeDust
+                        console.log('DEXタイプ情報が見つかりません。デフォルトでDeDustを使用します。', e);
+                        dexType = 0; // DeDust
+                        
+                        // スライスをリセットして再読み込み
+                        dexSlice = dexData.beginParse();
+                    }
+                    
+                    const dedustPoolAddress = dexSlice.loadAddress();
+                    const dedustJettonVaultAddress = dexSlice.loadAddress();
                     const jettonMasterAddress = slice.loadAddress();
+                    
                     baskets.push({
                         weight,
                         jettonWalletAddress,
                         dedustPoolAddress,
                         dedustJettonVaultAddress,
                         jettonMasterAddress,
+                        dexType, // DEXタイプ情報を追加
                     });
                 } catch (e) {
                     console.log('バスケット項目の解析エラー。この項目はスキップします。', e);
