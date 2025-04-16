@@ -48,3 +48,10 @@ export abstract class DexType {
     static DEDUST = 0;
     static STONFI = 1;
 }
+
+// DEXアドレス定数
+export const DEDUST_ROUTER_MAINNET = 'EQDa4VOnTYlLvDJ0gZjNYm5PXfSmmtL6Vs6A_CZEtXCNICq_';
+export const DEDUST_ROUTER_TESTNET = 'EQDa4VOnTYlLvDJ0gZjNYm5PXfSmmtL6Vs6A_CZEtXCNICq_'; // DeDustはtestnet未対応なので仮にメインネットアドレスを使用
+
+export const STONFI_ROUTER_MAINNET = 'EQBfBWT7X2BHg9tXAxzhz2aKiNTU1tpt5NsiK0uSDW_YAJ67';
+export const STONFI_ROUTER_TESTNET = 'EQBYTuYbLf8INxFtD8YmXl_8kUOvU3J7L_Vpi2XTgNwHaXzj';
