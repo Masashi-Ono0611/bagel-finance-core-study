@@ -1,15 +1,22 @@
 import { Address, Cell, toNano } from '@ton/core';
-import { Vault } from '../wrappers/Vault';
 import { compile, NetworkProvider } from '@ton/blueprint';
+import { Vault } from '../wrappers/Vault';
 import { jettonContentToCell, onchainContentToCell } from '../utils/JettonHelpers';
-import { DexType } from '../utils/Constants';
+import { 
+    DexType, 
+    DEDUST_ROUTER_MAINNET, 
+    DEDUST_ROUTER_TESTNET, 
+    STONFI_ROUTER_MAINNET, 
+    STONFI_ROUTER_TESTNET 
+} from '../utils/Constants';
 
 // バスケットテンプレート定義
 interface BasketTemplate {
     weight: string;
     jettonMasterAddress: string;
-    dedustPoolAddress: string;
-    dedustJettonVaultAddress: string;
+    dedustPoolAddress?: string;
+    dedustJettonVaultAddress?: string;
+    stonfiPoolAddress?: string; // StonfiプールアドレスはDeDustと構造が異なる
     dexType?: number; // DEXタイプ（0=DeDust, 1=Stonfi）
 }
 
@@ -21,7 +28,7 @@ interface VaultTemplate {
 
 // 定義済みテンプレート
 const templates: Record<string, VaultTemplate> = {
-    '2baskets index template': {
+    '2baskets dedust index mainnet': {
         image: 'https://bagel-finance.s3.ap-northeast-1.amazonaws.com/images/ton-plus-index.png',
         decimals: '9',
         baskets: [
@@ -41,7 +48,7 @@ const templates: Record<string, VaultTemplate> = {
             } //wsTON
         ]
     },
-    '3baskets index template': {
+    '3baskets dedust index mainnet': {
         image: 'https://bagel-finance.s3.ap-northeast-1.amazonaws.com/images/ton-plus-index.png',
         decimals: '9',
         baskets: [
@@ -69,6 +76,24 @@ const templates: Record<string, VaultTemplate> = {
         ]
     },
     // 他のテンプレートもここに追加できます
+    '2baskets stonfi testnet': {
+        image: 'https://bagel-finance.s3.ap-northeast-1.amazonaws.com/images/ton-plus-index.png',
+        decimals: '9',
+        baskets: [
+            {
+                weight: '600000000',
+                jettonMasterAddress: 'kQDZF8LaqYGxBqACM-oA6w8cpIPwzMAimn4TFhNKsfPMtGHw',
+                stonfiPoolAddress: 'kQBMHZC2j9xT-wnbzuDmIVjkE2j39n91LsjV7-7vlWS302WR', // StonFiプールアドレス（例）
+                dexType: DexType.STONFI
+            }, //APR14002
+            {
+                weight: '400000000',
+                jettonMasterAddress: 'kQDLvsZol3juZyOAVG8tWsJntOxeEZWEaWCbbSjYakQpuYN5',
+                stonfiPoolAddress: 'kQB6PDvbGUx0UBqFxql00Rnmq1D02_dXVCWCGzCzXv6y9zrE', // テストネットで見つけたStonFiプールアドレス
+                dexType: DexType.STONFI
+            } //TRT
+        ]
+    },
 };
 
 // 1. Jettonコンテンツ関連の関数
@@ -162,26 +187,55 @@ async function getBaskets(ui: any, templateData?: VaultTemplate) {
             const jettonMasterAddress = Address.parse(templateBasket.jettonMasterAddress);
             console.log(`Enter Jetton Master Address for Basket ${i + 1}: ${templateBasket.jettonMasterAddress}`);
             
-            const dedustPoolAddress = Address.parse(templateBasket.dedustPoolAddress);
-            console.log(`Enter DeDust Pool Address for Basket ${i + 1}: ${templateBasket.dedustPoolAddress}`);
-            
-            const dedustJettonVaultAddress = Address.parse(templateBasket.dedustJettonVaultAddress);
-            console.log(`Enter DeDust Jetton Vault Address for Basket ${i + 1}: ${templateBasket.dedustJettonVaultAddress}`);
-            
             // プレースホルダーウォレットアドレス
             const placeholderWalletAddress = Address.parse('EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c');
             
             // DEXタイプの設定（テンプレートに指定がない場合はデフォルトでDeDust）
             const dexType = templateBasket.dexType !== undefined ? templateBasket.dexType : DexType.DEDUST;
             
-            baskets.push({
-                weight,
-                jettonWalletAddress: placeholderWalletAddress,
-                dedustPoolAddress,
-                dedustJettonVaultAddress,
-                jettonMasterAddress,
-                dexType
-            });
+            // DEXタイプに応じて必要なアドレスを取得
+            if (dexType === DexType.DEDUST) {
+                // DeDustの場合
+                if (!templateBasket.dedustPoolAddress || !templateBasket.dedustJettonVaultAddress) {
+                    throw new Error(`Basket ${i + 1} is configured as DeDust but missing required DeDust addresses`);
+                }
+                
+                const dedustPoolAddress = Address.parse(templateBasket.dedustPoolAddress);
+                console.log(`Enter DeDust Pool Address for Basket ${i + 1}: ${templateBasket.dedustPoolAddress}`);
+                
+                const dedustJettonVaultAddress = Address.parse(templateBasket.dedustJettonVaultAddress);
+                console.log(`Enter DeDust Jetton Vault Address for Basket ${i + 1}: ${templateBasket.dedustJettonVaultAddress}`);
+                
+                baskets.push({
+                    weight,
+                    jettonWalletAddress: placeholderWalletAddress,
+                    dedustPoolAddress,
+                    dedustJettonVaultAddress,
+                    jettonMasterAddress,
+                    dexType
+                });
+            } else if (dexType === DexType.STONFI) {
+                // Stonfiの場合
+                if (!templateBasket.stonfiPoolAddress) {
+                    throw new Error(`Basket ${i + 1} is configured as Stonfi but missing required Stonfi pool address`);
+                }
+                
+                const stonfiPoolAddress = Address.parse(templateBasket.stonfiPoolAddress);
+                console.log(`Enter Stonfi Pool Address for Basket ${i + 1}: ${templateBasket.stonfiPoolAddress}`);
+                
+                // Stonfiの場合、DeDustアドレスの代わりにStonfiアドレスを使用
+                // 内部的には同じフィールドを使い回すが、コントラクト側で適切に処理される
+                baskets.push({
+                    weight,
+                    jettonWalletAddress: placeholderWalletAddress,
+                    dedustPoolAddress: stonfiPoolAddress, // Stonfiプールアドレスを格納
+                    dedustJettonVaultAddress: stonfiPoolAddress, // Stonfiでは同じアドレスを使用
+                    jettonMasterAddress,
+                    dexType
+                });
+            } else {
+                throw new Error(`Unknown DEX type ${dexType} for Basket ${i + 1}`);
+            }
         }
         
         return baskets;
@@ -215,15 +269,51 @@ export async function run(provider: NetworkProvider) {
     // 3.2 バスケットの設定
     const baskets = await getBaskets(ui, selectedTemplate);
 
-    // 3.3 Vaultのデプロイ
-    // DeDust TON Vaultアドレスは、DeDustのメインプールアドレスで固定
+    // 3.3 DEXタイプに応じたルーターアドレスの取得
+    // バスケットから使用されているDEXタイプを確認
+    let primaryDexType = DexType.DEDUST; // デフォルトはDeDust
+    
+    // バスケットが存在し、少なくとも一つのDEXタイプが指定されている場合
+    if (baskets.length > 0 && baskets[0].dexType !== undefined) {
+        primaryDexType = baskets[0].dexType;
+    }
+    
+    // ネットワークに応じたアドレスを選択
+    const network = provider.network();
+    let dexTonVaultAddress: Address;
+    
+    if (primaryDexType === DexType.DEDUST) {
+        // DeDustの場合
+        if (network === 'testnet') {
+            dexTonVaultAddress = Address.parse(DEDUST_ROUTER_TESTNET);
+            console.log(`テストネットのDeDustルーターを使用します: ${DEDUST_ROUTER_TESTNET}`);
+        } else {
+            dexTonVaultAddress = Address.parse(DEDUST_ROUTER_MAINNET);
+            console.log(`メインネットのDeDustルーターを使用します: ${DEDUST_ROUTER_MAINNET}`);
+        }
+    } else if (primaryDexType === DexType.STONFI) {
+        // Stonfiの場合
+        if (network === 'testnet') {
+            dexTonVaultAddress = Address.parse(STONFI_ROUTER_TESTNET);
+            console.log(`テストネットのStonFiルーターを使用します: ${STONFI_ROUTER_TESTNET}`);
+        } else {
+            dexTonVaultAddress = Address.parse(STONFI_ROUTER_MAINNET);
+            console.log(`メインネットのStonFiルーターを使用します: ${STONFI_ROUTER_MAINNET}`);
+        }
+    } else {
+        // 不明なDEXタイプの場合はデフォルトでDeDustを使用
+        dexTonVaultAddress = Address.parse(DEDUST_ROUTER_MAINNET);
+        console.log(`不明なDEXタイプです。デフォルトでDeDustルーターを使用します: ${DEDUST_ROUTER_MAINNET}`);
+    }
+    
+    // 3.4 Vaultのデプロイ
     const vault = provider.open(
         Vault.createFromConfig(
             {
                 adminAddress: provider.sender()?.address!,
                 content,
                 walletCode: await compile('JettonWallet'),
-                dexTonVaultAddress: Address.parse('EQDa4VOnTYlLvDJ0gZjNYm5PXfSmmtL6Vs6A_CZEtXCNICq_'),
+                dexTonVaultAddress,
                 baskets,
             },
             await compile('Vault'),
