@@ -22,6 +22,7 @@
         "typescript": "^5.6.3"
     },
     "dependencies": {
-        "@ston-fi/sdk": "^2.4.0"
+        "@ston-fi/api": "^0.21.0",
+        "@ston-fi/sdk": "^2.2.3"
     }
 }
