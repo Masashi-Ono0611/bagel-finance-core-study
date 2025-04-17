@@ -103,6 +103,14 @@ export class AddressHelper {
      * このメソッドは常に正しいアドレスを返す
      */
     static getStonfiTestnetRouterAddress(): Address {
-        return this.getAddressSafe('EQBsGx9ArADUrREB34W-ghgsCgBShvfUr4Jvlu-0KGc33Rbt', 'EQBfBWT7X2BHg9tXAxzhz2aKiNTU1tpt5NsiK0uSDW_YAJ67');
+        // バイナリ形式で解析した場合、アドレス形式が変わる可能性があるため、
+        // 直接アドレス文字列を使用して解析する
+        try {
+            return Address.parse('EQBsGx9ArADUrREB34W-ghgsCgBShvfUr4Jvlu-0KGc33Rbt');
+        } catch (error) {
+            console.warn(`Stonfiテストネットアドレスの解析に失敗しました。バイナリ形式を使用します。`);
+            // バイナリ形式で解析すると形式が変わる可能性があるが、最終手段として使用
+            return Address.parseRaw(this.ADDRESS_HEX_MAP['EQBsGx9ArADUrREB34W-ghgsCgBShvfUr4Jvlu-0KGc33Rbt']);
+        }
     }
 }

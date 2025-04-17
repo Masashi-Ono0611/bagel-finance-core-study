@@ -315,10 +315,19 @@ export async function run(provider: NetworkProvider) {
     } else if (primaryDexType === DexType.STONFI) {
         // Stonfiの場合
         if (network === 'testnet') {
-            // 特殊文字を含むアドレスの場合は、AddressHelperを使用して安全に解析
-            // バイナリ形式でアドレスを取得
-            dexTonVaultAddress = AddressHelper.getStonfiTestnetRouterAddress();
+            // 特殊文字を含むアドレスの場合は、元のアドレス形式を保持するように注意
+            try {
+                // 直接アドレス文字列を使用して解析する
+                dexTonVaultAddress = Address.parse(STONFI_ROUTER_TESTNET);
+            } catch (error) {
+                console.warn(`アドレスの解析に失敗しました。AddressHelperを使用します。`);
+                // バイナリ形式でアドレスを取得
+                dexTonVaultAddress = AddressHelper.getStonfiTestnetRouterAddress();
+            }
+            // 元のアドレス文字列をログに表示
             console.log(`テストネットのStonFiルーターを使用します: ${STONFI_ROUTER_TESTNET}`);
+            // 実際に使用されるアドレスを確認用に表示
+            console.log(`実際に使用されるアドレス: ${dexTonVaultAddress.toString()}`);
         } else {
             dexTonVaultAddress = Address.parse(STONFI_ROUTER_MAINNET);
             console.log(`メインネットのStonFiルーターを使用します: ${STONFI_ROUTER_MAINNET}`);
