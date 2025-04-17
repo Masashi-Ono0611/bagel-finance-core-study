@@ -6,6 +6,7 @@ import { DEX, pTON } from '@ston-fi/sdk';
  * Stonfi SDKを使用したスワップテスト用スクリプト（DEX v1版）
  * 
  * このスクリプトは、Stonfi公式SDKのDEX v1を使用してTONからJettonへのスワップを実行します。
+ * メインネットとテストネットの両方に対応しています。
  * 
  * 使用方法:
  * npx blueprint run testStonfiSdkSwap_DEXv1
@@ -13,6 +14,31 @@ import { DEX, pTON } from '@ston-fi/sdk';
 
 export async function run(provider: NetworkProvider) {
   const ui = provider.ui();
+  
+  // ネットワーク選択
+  const network = await ui.choose('どのネットワークを使用しますか？', ['mainnet', 'testnet'], (v) => v);
+  const isMainnet = network === 'mainnet';
+  
+  // ネットワーク設定
+  const config = {
+    mainnet: {
+      endpoint: "https://toncenter.com/api/v2/jsonRPC",
+      askJettonAddress: 'EQA2kCVNwVsil2EM2mB0SkXytxCqQjS4mttjDpnXmwG9T6bO', // STON
+      minAskAmount: toNano('0.1'), // 最小受け取り量 0.1 STON
+      tokenName: 'STON',
+      explorerUrl: 'https://tonviewer.com'
+    },
+    testnet: {
+      endpoint: "https://testnet.toncenter.com/api/v2/jsonRPC",
+      askJettonAddress: 'kQDLvsZol3juZyOAVG8tWsJntOxeEZWEaWCbbSjYakQpuYN5', // TestRED
+      minAskAmount: '1', // 最小受け取り量
+      tokenName: 'TestRED',
+      explorerUrl: 'https://testnet.tonviewer.com'
+    }
+  };
+  
+  // 選択されたネットワーク設定を使用
+  const networkConfig = isMainnet ? config.mainnet : config.testnet;
   
   // ウォレットアドレスの取得
   const sender = provider.sender();
@@ -31,28 +57,26 @@ export async function run(provider: NetworkProvider) {
 
   // TonClientの初期化
   const client = new TonClient({
-    endpoint: "https://testnet.toncenter.com/api/v2/jsonRPC",
+    endpoint: networkConfig.endpoint,
   });
 
   // DEX v1 Routerの初期化
   const router = client.open(new DEX.v1.Router());
 
-  // pTON v1の初期化
+  // pTONの初期化
   const proxyTon = new pTON.v1();
 
   // スワップパラメータの固定値
-  const askJettonAddress = 'kQDLvsZol3juZyOAVG8tWsJntOxeEZWEaWCbbSjYakQpuYN5'; // TestREDトークン
   const offerAmount = toNano('1'); // 1 TONをスワップ
-  const minAskAmount = '1'; // 最小受け取り量
   const queryId = 12345; // クエリID
   
   // スワップパラメータの設定
   await ui.write('\nスワップパラメータの設定:');
   await ui.write(`- TON送信量: 1 TON`);
-  await ui.write(`- 最小受け取り量: ${minAskAmount} TestRED`);
-  await ui.write(`- ターゲットトークン: TestRED`);
+  await ui.write(`- 最小受け取り量: ${networkConfig.minAskAmount.toString()} ${networkConfig.tokenName}`);
+  await ui.write(`- ターゲットトークン: ${networkConfig.tokenName}`);
   await ui.write(`- DEXバージョン: v1`);
-  await ui.write(`- ネットワーク: テストネット`);
+  await ui.write(`- ネットワーク: ${network}`);
   
   // ユーザーに確認
   const options = ['はい', 'いいえ'];
@@ -70,8 +94,8 @@ export async function run(provider: NetworkProvider) {
       userWalletAddress: senderAddress.toString(),
       proxyTon: proxyTon,
       offerAmount: offerAmount,
-      askJettonAddress: askJettonAddress,
-      minAskAmount: minAskAmount,
+      askJettonAddress: networkConfig.askJettonAddress,
+      minAskAmount: networkConfig.minAskAmount,
       queryId: queryId,
     });
     
@@ -97,9 +121,9 @@ export async function run(provider: NetworkProvider) {
     });
     
     await ui.write('トランザクションが送信されました！');
-    await ui.write(`トランザクションの詳細はエクスプローラーで確認できます: https://testnet.tonviewer.com/address/${senderAddress.toString()}`);
+    await ui.write(`トランザクションの詳細はエクスプローラーで確認できます: ${networkConfig.explorerUrl}/address/${senderAddress.toString()}`);
     await ui.write('\n注意: スワップ結果を確認するには、あなたのウォレットアドレスのトランザクション履歴を確認してください。');
-    await ui.write(`成功すると、ウォレットに TestRED が届きます。`);
+    await ui.write(`成功すると、ウォレットに ${networkConfig.tokenName} が届きます。`);
     
   } catch (error) {
     await ui.write(`エラーが発生しました: ${error instanceof Error ? error.message : String(error)}`);
