@@ -20,9 +20,10 @@ import { DEX, pTON } from '@ston-fi/sdk';
 export async function run(provider: NetworkProvider) {
   const ui = provider.ui();
   
-  // ネットワーク選択
-  const network = await ui.choose('どのネットワークを使用しますか？', ['mainnet', 'testnet'], (v) => v);
+  // ネットワーク選択（ハードコード）
+  const network = 'mainnet'; // 'mainnet' または 'testnet' を選択
   const isMainnet = network === 'mainnet';
+  await ui.write(`選択されたネットワーク: ${network}`);
   
   // ネットワーク設定
   const config = {
@@ -30,18 +31,18 @@ export async function run(provider: NetworkProvider) {
       endpoint: "https://toncenter.com/api/v2/jsonRPC",
       routerAddress: 'EQCiypoBWNIEPlarBp04UePyEj5zH0ZDHxuRNqJ1WQx3FCY-', // Router v2.2 mainnet
       proxyTonAddress: 'EQBnGWMCf3-FZZq1W4IWcWiGAc3PHuZ0_H-7sad2oY00o83S', // pTON v2.1 mainnet
-      askJettonAddress: 'EQA2kCVNwVsil2EM2mB0SkXytxCqQjS4mttjDpnXmwG9T6bO', // STON
-      minAskAmount: toNano('0.1'), // 最小受け取り量 0.1 STON
-      tokenName: 'STON',
+      askJettonAddress: 'EQB4zZusHsbU2vVTPqjhlokIOoiZhEdCMT703CWEzhTOo__X', // X Empire
+      minAskAmount: toNano('0.1'), // 最小受け取り量 0.1 X Empire
+      tokenName: 'X Empire',
       explorerUrl: 'https://tonviewer.com'
     },
     testnet: {
       endpoint: "https://testnet.toncenter.com/api/v2/jsonRPC",
-      routerAddress: 'kQAFpeGFJQA9KqiCxXZ8J4l__vSYAxFSirSOvPHn6SSX4ztn', // Router v2.2.0 testnet
-      proxyTonAddress: 'kQACS30DNoUQ7NfApPvzh7eBmSZ9L4ygJ-lkNWtba8TQT-Px', // pTON v2.1.0 testnet
-      askJettonAddress: 'kQDLvsZol3juZyOAVG8tWsJntOxeEZWEaWCbbSjYakQpuYN5', // TestRED
+      routerAddress: 'kQCS4UEa5UaJLzOyyKieqQOQ2P9M-7kXpkO5HnP3Bv250Xj9', // Router v2 testnet
+      proxyTonAddress: 'kQBnGWMCf3-FZZq1W4IWcWiGAc3PHuZ0_H-7sad2oY00o3ZY', // pTON v2 testnet
+      askJettonAddress: 'kQDBhbVXAF0Xur1dYBxA6tCiUV-14LEn_KZgVimTiV67dE85', //Tether USD USD₮
       minAskAmount: '1', // 最小受け取り量
-      tokenName: 'TestRED',
+      tokenName: 'Tether USD USD₮',
       explorerUrl: 'https://testnet.tonviewer.com'
     }
   };
@@ -89,13 +90,8 @@ export async function run(provider: NetworkProvider) {
   await ui.write(`- ルーターアドレス: ${networkConfig.routerAddress}`);
   await ui.write(`- プロキシTONアドレス: ${networkConfig.proxyTonAddress}`);
   
-  // ユーザーに確認
-  const options = ['はい', 'いいえ'];
-  const confirmed = await ui.choose('スワップを実行しますか？', options, (v) => v);
-  if (confirmed !== 'はい') {
-    await ui.write('スワップはキャンセルされました。');
-    return;
-  }
+  // 自動実行
+  await ui.write('スワップを自動的に実行します...');
 
   try {
     // スワップトランザクションパラメータの取得
@@ -114,12 +110,8 @@ export async function run(provider: NetworkProvider) {
     await ui.write(`- 送信先アドレス: ${txParams.to}`);
     await ui.write(`- 送信額: ${txParams.value.toString()} TON`);
     
-    // ユーザーに最終確認
-    const finalConfirm = await ui.choose('このトランザクションを送信しますか？', options, (v) => v);
-    if (finalConfirm !== 'はい') {
-      await ui.write('トランザクションはキャンセルされました。');
-      return;
-    }
+    // 自動送信
+    await ui.write('トランザクションを自動的に送信します...');
     
     // トランザクションの送信
     await ui.write('\nトランザクションを送信しています...');

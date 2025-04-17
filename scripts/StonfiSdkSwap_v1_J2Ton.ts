@@ -3,13 +3,13 @@ import { TonClient, toNano, Address } from '@ton/ton';
 import { DEX, pTON } from '@ston-fi/sdk';
 
 /**
- * Stonfi SDKを使用したスワップテスト用スクリプト（DEX v1版）
+ * Stonfi SDKを使用したスワップテスト用スクリプト（DEX v1版 - JettonからTON）
  * 
- * このスクリプトは、Stonfi公式SDKのDEX v1を使用してTONからJettonへのスワップを実行します。
+ * このスクリプトは、Stonfi公式SDKのDEX v1を使用してJettonからTONへのスワップを実行します。
  * メインネットとテストネットの両方に対応しています。
  * 
  * 使用方法:
- * npx blueprint run testStonfiSdkSwap_DEXv1
+ * npx blueprint run testStonfiSdkSwap_v1_J2Ton
  */
 
 export async function run(provider: NetworkProvider) {
@@ -23,15 +23,15 @@ export async function run(provider: NetworkProvider) {
   const config = {
     mainnet: {
       endpoint: "https://toncenter.com/api/v2/jsonRPC",
-      askJettonAddress: 'EQA2kCVNwVsil2EM2mB0SkXytxCqQjS4mttjDpnXmwG9T6bO', // STON
-      minAskAmount: toNano('0.1'), // 最小受け取り量 0.1 STON
+      offerJettonAddress: '', // コンソールから入力
+      minAskAmount: '0.1', // 最小受け取り量（TON）
       tokenName: 'STON',
       explorerUrl: 'https://tonviewer.com'
     },
     testnet: {
       endpoint: "https://testnet.toncenter.com/api/v2/jsonRPC",
-      askJettonAddress: 'kQDLvsZol3juZyOAVG8tWsJntOxeEZWEaWCbbSjYakQpuYN5', // TestRED
-      minAskAmount: '1', // 最小受け取り量
+      offerJettonAddress: 'kQDLvsZol3juZyOAVG8tWsJntOxeEZWEaWCbbSjYakQpuYN5', // TestRED
+      minAskAmount: '1', // 最小受け取り量（TON）
       tokenName: 'TestRED',
       explorerUrl: 'https://testnet.tonviewer.com'
     }
@@ -55,46 +55,45 @@ export async function run(provider: NetworkProvider) {
   
   await ui.write(`ウォレットアドレス: ${senderAddress.toString()}`);
 
-  // TonClientの初期化
-  const client = new TonClient({
-    endpoint: networkConfig.endpoint,
-  });
-
-  // DEX v1 Routerの初期化
-  const router = client.open(new DEX.v1.Router());
-
-  // pTONの初期化
-  const proxyTon = new pTON.v1();
-
-  // スワップパラメータの固定値
-  const offerAmount = toNano('1'); // 1 TONをスワップ
-  const queryId = 12345; // クエリID
-  
-  // スワップパラメータの設定
-  await ui.write('\nスワップパラメータの設定:');
-  await ui.write(`- TON送信量: 1 TON`);
-  await ui.write(`- 最小受け取り量: ${networkConfig.minAskAmount.toString()} ${networkConfig.tokenName}`);
-  await ui.write(`- ターゲットトークン: ${networkConfig.tokenName}`);
-  await ui.write(`- DEXバージョン: v1`);
-  await ui.write(`- ネットワーク: ${network}`);
-  
-  // ユーザーに確認
-  const options = ['はい', 'いいえ'];
-  const confirmed = await ui.choose('スワップを実行しますか？', options, (v) => v);
-  if (confirmed !== 'はい') {
-    await ui.write('スワップはキャンセルされました。');
-    return;
-  }
-
   try {
+    // TonClientの初期化
+    const client = new TonClient({
+      endpoint: networkConfig.endpoint,
+    });
+
+    // DEX v1 Routerの初期化
+    const router = client.open(new DEX.v1.Router());
+
+    // スワップパラメータの初期設定
+    await ui.write('\nスワップパラメータの設定:');
+    await ui.write(`- 最小受け取り量: ${networkConfig.minAskAmount} TON`);
+    await ui.write(`- ターゲットトークン: TON`);
+    await ui.write(`- DEXバージョン: v1`);
+    await ui.write(`- ネットワーク: ${network}`);
+    
+    // ユーザーに確認
+    const options = ['はい', 'いいえ'];
+    const confirmed = await ui.choose('スワップを実行しますか？', options, (v) => v);
+    if (confirmed !== 'はい') {
+      await ui.write('スワップはキャンセルされました。');
+      return;
+    }
+
     // スワップトランザクションパラメータの取得
     await ui.write('\nスワップトランザクションパラメータを取得中...');
     
-    const txParams = await router.getSwapTonToJettonTxParams({
+    // スワップパラメータの設定
+    const amountInput = await ui.input(`スワップする${networkConfig.tokenName}の量を入力してください（例: 0.1）：`);
+    const offerAmount = toNano(amountInput || '0.1'); // デフォルトは0.1 Jetton
+    const queryId = 12345; // クエリID
+    
+    await ui.write(`- スワップ量: ${amountInput || '0.1'} ${networkConfig.tokenName}`);
+
+    const txParams = await router.getSwapJettonToTonTxParams({
       userWalletAddress: senderAddress.toString(),
-      proxyTon: proxyTon,
+      offerJettonAddress: networkConfig.offerJettonAddress,
       offerAmount: offerAmount,
-      askJettonAddress: networkConfig.askJettonAddress,
+      proxyTon: new pTON.v1(),
       minAskAmount: networkConfig.minAskAmount,
       queryId: queryId,
     });
@@ -123,7 +122,7 @@ export async function run(provider: NetworkProvider) {
     await ui.write('トランザクションが送信されました！');
     await ui.write(`トランザクションの詳細はエクスプローラーで確認できます: ${networkConfig.explorerUrl}/address/${senderAddress.toString()}`);
     await ui.write('\n注意: スワップ結果を確認するには、あなたのウォレットアドレスのトランザクション履歴を確認してください。');
-    await ui.write(`成功すると、ウォレットに ${networkConfig.tokenName} が届きます。`);
+    await ui.write(`成功すると、ウォレットに TON が届きます。`);
     
   } catch (error) {
     await ui.write(`エラーが発生しました: ${error instanceof Error ? error.message : String(error)}`);
