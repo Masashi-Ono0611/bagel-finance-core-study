@@ -73,9 +73,22 @@ export async function run(provider: NetworkProvider) {
             }
         });
         
-        // 全体のデポジット金額を入力
-        const totalAmountStr = await ui.input('デポジットするTON金額を入力してください（nanoTON単位）:');
-        const totalAmount = BigInt(totalAmountStr);
+        // 全体のデポジット金額の設定
+        // デフォルトは1 TON（1,000,000,000 nanoTON）
+        const DEFAULT_DEPOSIT_AMOUNT = toNano('1'); // 1 TON
+        
+        // デフォルト値を使用するか確認
+        const useDefault = await ui.choose('デポジット金額にデフォルト値（1 TON）を使用しますか？', ['はい', 'いいえ（手動入力）'], (v) => v);
+        
+        let totalAmount: bigint;
+        if (useDefault === 'はい') {
+            totalAmount = DEFAULT_DEPOSIT_AMOUNT;
+            console.log(`デフォルト金額を使用します: ${totalAmount} nanoTON (${Number(totalAmount) / 1e9} TON)`);
+        } else {
+            // 手動入力の場合
+            const totalAmountStr = await ui.input('デポジットするTON金額を入力してください（nanoTON単位）:');
+            totalAmount = BigInt(totalAmountStr);
+        }
         
         // 各バスケットの重みの合計を計算
         const totalWeight = vaultData.baskets.reduce((sum, basket) => sum + basket.weight, 0n);
