@@ -75,12 +75,27 @@ const int INDEX_UNIT = 1000000000;
                 ;; ここでは簡単のため、先頭バイトが存在すればタイプ情報とみなす
                 dex_type = slice_dex~load_uint(2); ;; 2ビットで最大4種類のDEXをサポート
             }
-            slice dex_pool_address = slice_dex~load_msg_addr();
+            ;; DEXタイプに応じて適切なアドレスを取得
+            slice dex_address = null();
+            
+            if (dex_type == DEX_TYPE_DEDUST()) {
+                ;; DeDustの場合はプールアドレスを使用
+                dex_address = slice_dex~load_msg_addr(); ;; dex_pool_address
+                slice_dex~load_msg_addr(); ;; dex_jetton_vault_addressをスキップ
+            } else if (dex_type == DEX_TYPE_STONFI()) {
+                ;; StonFiの場合はルーターアドレスを使用
+                dex_address = slice_dex~load_msg_addr(); ;; dex_router_address
+                slice_dex~load_msg_addr(); ;; dex_proxy_ton_addressをスキップ
+            } else {
+                ;; 不明なDEXタイプの場合はデフォルトの動作
+                dex_address = slice_dex~load_msg_addr();
+            }
+            
             swap_dex_ton(
                 query_id,
                 swap_amount,
                 gas_per_basket,
-                dex_pool_address,
+                dex_address,
                 sender_address,
                 dex_type
             );
