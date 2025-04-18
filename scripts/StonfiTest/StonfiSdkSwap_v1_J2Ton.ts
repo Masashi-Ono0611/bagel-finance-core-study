@@ -25,14 +25,14 @@ export async function run(provider: NetworkProvider) {
       endpoint: "https://toncenter.com/api/v2/jsonRPC",
       offerJettonAddress: '', // コンソールから入力
       minAskAmount: '0.1', // 最小受け取り量（TON）
-      tokenName: 'STON',
+      tokenName: 'Jetton',
       explorerUrl: 'https://tonviewer.com'
     },
     testnet: {
       endpoint: "https://testnet.toncenter.com/api/v2/jsonRPC",
-      offerJettonAddress: 'kQDLvsZol3juZyOAVG8tWsJntOxeEZWEaWCbbSjYakQpuYN5', // TestRED
+      offerJettonAddress: 'kQBqtvcqnOUQrNN5JLb42AZtNiP7hsFvVNCOqiKUEoNYGkgv', // TestRED
       minAskAmount: '1', // 最小受け取り量（TON）
-      tokenName: 'TestRED',
+      tokenName: 'Jetton',
       explorerUrl: 'https://testnet.tonviewer.com'
     }
   };
@@ -67,7 +67,6 @@ export async function run(provider: NetworkProvider) {
     // スワップパラメータの初期設定
     await ui.write('\nスワップパラメータの設定:');
     await ui.write(`- 最小受け取り量: ${networkConfig.minAskAmount} TON`);
-    await ui.write(`- ターゲットトークン: TON`);
     await ui.write(`- DEXバージョン: v1`);
     await ui.write(`- ネットワーク: ${network}`);
     
