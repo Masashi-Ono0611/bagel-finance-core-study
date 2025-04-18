@@ -64,15 +64,27 @@ export async function run(provider: NetworkProvider) {
 
     const newBaskets = await Promise.all(
         vaultData.baskets.map(async (basket: any) => {
+            // DEXタイプを取得（指定がない場合はデフォルトでDeDust）
+            const dexType = basket.dexType !== undefined ? basket.dexType : DexType.DEDUST;
+            
             // 基本情報を取得
-            const result = {
+            const result: any = {
                 weight: basket.weight,
-                jettonWalletAddress: await getJettonWalletAddr(tonClient, basket.jettonMasterAddress, vaultAddr),
                 dexPoolAddress: basket.dexPoolAddress || basket.dedustPoolAddress, // 互換性のために旧式フィールドもチェック
                 dexJettonVaultAddress: basket.dexJettonVaultAddress || basket.dedustJettonVaultAddress, // 互換性のために旧式フィールドもチェック
                 jettonMasterAddress: basket.jettonMasterAddress,
-                dexType: basket.dexType !== undefined ? basket.dexType : DexType.DEDUST, // DEXタイプがない場合はデフォルトでDeDust
+                dexType: dexType,
             };
+            
+            // DEXタイプに応じてjettonWalletAddressを設定
+            if (dexType === DexType.DEDUST) {
+                // DeDustの場合は動的に計算
+                result.jettonWalletAddress = await getJettonWalletAddr(tonClient, basket.jettonMasterAddress, vaultAddr);
+            } else if (dexType === DexType.STONFI) {
+                // StonFiの場合は既存の値を使用（なければ計算）
+                result.jettonWalletAddress = basket.jettonWalletAddress || 
+                    await getJettonWalletAddr(tonClient, basket.jettonMasterAddress, vaultAddr);
+            }
             
             // StonFi V1の場合は追加フィールドも設定
             if (basket.dexType === DexType.STONFI) {

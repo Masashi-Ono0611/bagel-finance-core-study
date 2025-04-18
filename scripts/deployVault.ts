@@ -17,6 +17,8 @@ import {
 interface BasketTemplate {
     weight: string;
     jettonMasterAddress: string;
+    // StonFi用に予め設定するJettonウォレットアドレス
+    jettonWalletAddress?: string;    // StonFiの場合はデプロイ時に設定、DeDustの場合はinitVault時に設定
     // DEX共通フィールド
     dexPoolAddress?: string;         // DEXプールアドレス（DeDustの場合はトークンペア別のプール、StonFiの場合はルーターアドレス）
     dexJettonVaultAddress?: string;   // DEXのJettonVaultアドレス（DeDustの場合は実際のVault、StonFiの場合はダミー）
@@ -106,19 +108,25 @@ const templates: Record<string, VaultTemplate> = {
         decimals: '9',
         baskets: [
             {
-                weight: '900000000',
+                weight: '200000000',
                 jettonMasterAddress: 'kQDLvsZol3juZyOAVG8tWsJntOxeEZWEaWCbbSjYakQpuYN5',
+                jettonWalletAddress: 'kQAVqalPYw0U1cPNtL6n92AEItXW5LUVKMtX0IDEZ5KsD_td', 
+                // 使用するルーターに紐づくJettonAddress
+                // https://testnet.tonviewer.com/kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n/jetton/kQDLvsZol3juZyOAVG8tWsJntOxeEZWEaWCbbSjYakQpuYN5
                 dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', 
                 dexProxyTonAddress: 'kQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGHx0I',
-                //pTONのJettonMasterAddressではなく、もう一つのアドレスを使用する
+                //pTONのJettonMasterAddressではなく、使用するルーターに紐づくJettonAddressを使用する
                 dexType: DexType.STONFI
             }, //TRT
             {
-                weight: '100000000',
+                weight: '800000000',
                 jettonMasterAddress: 'kQBqtvcqnOUQrNN5JLb42AZtNiP7hsFvVNCOqiKUEoNYGkgv',
+                jettonWalletAddress: 'kQBqtvcqnOUQrNN5JLb42AZtNiP7hsFvVNCOqiKUEoNYGkgv', 
+                // 使用するルーターに紐づくJettonAddress
+                // https://testnet.tonviewer.com/kQBKQIkwBe_d50vACml6Ymh9iCdoCz-0OdCrxDTKPRdDHz6C
                 dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', 
                 dexProxyTonAddress: 'kQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGHx0I',
-                //pTONのJettonMasterAddressではなく、もう一つのアドレスを使用する
+                //pTONのJettonMasterAddressではなく、使用するルーターに紐づくJettonAddressを使用する
                 dexType: DexType.STONFI
             }, //APR16
         ]
@@ -277,9 +285,18 @@ async function getBaskets(ui: any, templateData?: VaultTemplate, isMainnet: bool
                 const dummyPoolAddress = Address.parse('EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c');
                 const dummyJettonVaultAddress = Address.parse('EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c');
                 
+                // StonFiの場合はテンプレートにjettonWalletAddressが設定されていれば使用する
+                const jettonWalletAddress = templateBasket.jettonWalletAddress ? 
+                    Address.parse(templateBasket.jettonWalletAddress) : 
+                    placeholderWalletAddress;
+                    
+                if (templateBasket.jettonWalletAddress) {
+                    console.log(`Using Jetton Wallet Address for Basket ${i + 1}: ${templateBasket.jettonWalletAddress}`);
+                }
+                
                 baskets.push({
                     weight,
-                    jettonWalletAddress: placeholderWalletAddress,
+                    jettonWalletAddress, // テンプレートから取得したJettonウォレットアドレス
                     dexRouterAddress, // StonFi V1用のルーターアドレス
                     dexProxyTonAddress, // StonFi V1用のプロキシアドレス
                     dexPoolAddress: dummyPoolAddress, // ダミーのプールアドレス
@@ -402,6 +419,9 @@ export async function run(provider: NetworkProvider) {
         console.log(`  DEXタイプ: ${basket.dexType === 0 ? 'DeDust' : basket.dexType === 1 ? 'StonFi' : '不明'}`);
         
         if (basket.dexType === 1) { // StonFi
+            if (basket.jettonWalletAddress) {
+                console.log(`  Jettonウォレットアドレス: ${basket.jettonWalletAddress.toString()}`);
+            }
             if (basket.dexRouterAddress) {
                 console.log(`  StonFiルーターアドレス: ${basket.dexRouterAddress.toString()}`);
             }
