@@ -145,9 +145,12 @@ int DEX_TYPE_STONFI() asm "1 PUSHINT";
             .end_cell();
     }
     
+    ;; 送信先アドレスをDEXタイプに応じて選択
+    slice target_address = dex_type == DEX_TYPE_STONFI() ? dex_pool_address : storage::dex_ton_vault_address;
+    
     cell msg = begin_cell()
         .store_uint(0x18, 6)
-        .store_slice(storage::dex_ton_vault_address)
+        .store_slice(target_address)
         .store_coins(swap_amount + gas)
         .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1)
         .store_maybe_ref(body)
@@ -247,22 +250,22 @@ int DEX_TYPE_STONFI() asm "1 PUSHINT";
             .store_ref(swap_params)
             .end_cell();
     } else {
-        ;; Stonfi用のパラメータ生成
+        ;; Stonfi V1用のパラメータ生成
         swap_params = begin_cell()
-            .store_uint(now() + 60 * 5, 32) ;; deadline:Timestamp
-            .store_slice(user_address) ;; recipient_addr:MsgAddressInt
-            .store_slice(addr_none()) ;; referral_addr:MsgAddress
-            .store_maybe_ref(null()) ;; fulfill_payload:(Maybe ^Cell)
-            .store_maybe_ref(null()) ;; reject_payload:(Maybe ^Cell)
+            .store_uint(now() + 60 * 5, 32) ;; deadline:Timestamp - 有効期限（現在時刻+5分）
+            .store_slice(user_address) ;; recipient_addr:MsgAddressInt - ユーザーアドレスを受取人に設定
+            .store_slice(addr_none()) ;; referral_addr:MsgAddress - リファラルアドレス（なし）
+            .store_maybe_ref(null()) ;; fulfill_payload:(Maybe ^Cell) - 成功時ペイロード（なし）
+            .store_maybe_ref(null()) ;; reject_payload:(Maybe ^Cell) - 失敗時ペイロード（なし）
             .end_cell();
             
         forward_payload = begin_cell()
-            .store_uint(op::stonfi_jetton_swap(), 32)
-            .store_slice(dex_pool_address) ;; pool_addr:MsgAddressInt
-            .store_uint(0, 1) ;; kind:SwapKind
-            .store_coins(0) ;; limit:Coins
-            .store_maybe_ref(null()) ;; next
-            .store_ref(swap_params)
+            .store_uint(op::stonfi_jetton_swap(), 32) ;; StonFi V1のジェットンスワップオペレーションコード
+            .store_slice(dex_pool_address) ;; pool_addr:MsgAddressInt - StonFiのルーターアドレス
+            .store_uint(0, 1) ;; kind:SwapKind - スワップの種類（Jetton→TON）
+            .store_coins(0) ;; limit:Coins - 最小受け取り量（0=制限なし）
+            .store_maybe_ref(null()) ;; next - 次のスワップステップ（なし）
+            .store_ref(swap_params) ;; スワップパラメータ
             .end_cell();
     }
     
