@@ -1,105 +1,123 @@
 import { Address, beginCell } from '@ton/core';
-import { Vault } from '../wrappers/Vault';
+import { Vault } from '../../wrappers/Vault';
 import { NetworkProvider } from '@ton/blueprint';
 import { toNano } from '@ton/core';
 
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui();
     
-    console.log('\n⚠️ VAULT DESTRUCTION TOOL ⚠️');
+    console.log('\n⚠️ Vaultデストラクションツール ⚠️');
     console.log('------------------------------');
-    console.log('\nWARNING: This action will destroy a Vault and transfer any remaining TON.');
-    console.log('This operation CANNOT be undone. Proceed with extreme caution!\n');
+    console.log('\n警告: このアクションはVaultを破壊し、残っているTONを転送します。');
+    console.log('この操作は元に戻すことができません。十分に注意して進めてください！\n');
     
     // Vaultアドレスの入力
-    const vaultAddr = await ui.inputAddress('Vault address to destroy: ');
+    const vaultAddr = await ui.inputAddress('破壊するVaultアドレス: ');
     const vault = provider.open(Vault.createFromAddress(vaultAddr));
     
     // 現在のVaultデータを取得して確認
-    console.log('\nFetching vault information before destruction...');
+    console.log('\n破壊前のVault情報を取得中...');
     try {
         const jettonData = await vault.getJettonData();
         const vaultData = await vault.getVaultData();
         const accumulatedGasTON = Number(vaultData.accumulatedGas) / 1e9;
         
-        console.log('\nVault Information:');
+        console.log('\nVault情報:');
         console.log('--------------------');
-        console.log(`Admin Address: ${jettonData.adminAddress}`);
-        console.log(`Status: ${vaultData.stopped ? 'Stopped' : 'Active'}`);
-        console.log(`Number of Baskets: ${vaultData.numBaskets}`);
-        console.log(`Total Supply: ${jettonData.totalSupply}`);
-        console.log(`Accumulated Gas: ${vaultData.accumulatedGas} nanoTON (${accumulatedGasTON.toFixed(9)} TON)`);
+        console.log(`管理者アドレス: ${jettonData.adminAddress}`);
+        console.log(`ステータス: ${vaultData.stopped ? '停止中' : 'アクティブ'}`);
+        console.log(`バスケット数: ${vaultData.numBaskets}`);
+        console.log(`総供給量: ${jettonData.totalSupply}`);
+        console.log(`累積ガス: ${vaultData.accumulatedGas} nanoTON (${accumulatedGasTON.toFixed(9)} TON)`);
         
         if (vaultData.baskets.length > 0) {
-            console.log('\n⚠️ WARNING: This vault has active baskets defined!');
+            console.log('\n⚠️ 警告: このVaultにはアクティブなバスケットが定義されています！');
+            
+            // バスケット情報の表示
+            console.log('\nバスケット情報:');
+            vaultData.baskets.forEach((basket, index) => {
+                console.log(`\nバスケット ${index + 1}:`);
+                console.log(`  重み: ${basket.weight}`);
+                console.log(`  JettonMasterアドレス: ${basket.jettonMasterAddress}`);
+                console.log(`  JettonWalletアドレス: ${basket.jettonWalletAddress}`);
+                
+                // DEXタイプに応じた情報表示
+                if (basket.dexType === 1) { // StonFi
+                    console.log(`  DEXタイプ: StonFi`);
+                    console.log(`  StonFiルーターアドレス: ${basket.dexRouterAddress || 'なし'}`);
+                    console.log(`  StonFiプロキシTONアドレス: ${basket.dexProxyTonAddress || 'なし'}`);
+                } else { // DeDust または不明
+                    console.log(`  DEXタイプ: ${basket.dexType === 0 ? 'DeDust' : '不明'}`);
+                    console.log(`  DEXプールアドレス: ${basket.dexPoolAddress || 'なし'}`);
+                    console.log(`  DEX JettonVaultアドレス: ${basket.dexJettonVaultAddress || 'なし'}`);
+                }
+            });
+            
             if (jettonData.totalSupply > 0) {
-                console.log('⚠️ CRITICAL WARNING: This vault has active supply!');
-                console.log('⚠️ Users may lose access to their tokens if you proceed!\n');
+                console.log('\n⚠️ 重大な警告: このVaultにはアクティブな供給量があります！');
+                console.log('⚠️ 続行すると、ユーザーがトークンにアクセスできなくなる可能性があります！\n');
             }
         }
         
         // 待機リクエストの数を確認
         const waitingKeys = Array.from(vaultData.dict_waitings.keys());
         if (waitingKeys.length > 0) {
-            console.log(`⚠️ WARNING: ${waitingKeys.length} pending requests will be lost!`);
+            console.log(`⚠️ 警告: ${waitingKeys.length}件の保留中リクエストが失われます！`);
         }
     } catch (error) {
-        console.warn('Could not fetch complete vault data:', error instanceof Error ? error.message : String(error));
-        console.log('⚠️ Cannot fully verify vault state. Destruction is highly risky!\n');
+        console.warn('Vaultデータの完全な取得ができませんでした:', error instanceof Error ? error.message : String(error));
+        console.log('⚠️ Vaultの状態を完全に確認できません。破壊は非常に危険です！\n');
         
         const proceedAnyway = await ui.choose(
-            'Unable to verify vault state. Still want to proceed?',
-            ['No, cancel operation', 'Yes, proceed at my own risk'],
+            'Vaultの状態を確認できません。それでも続行しますか？',
+            ['いいえ、操作をキャンセルします', 'はい、自己責任で続行します'],
             (v) => v
         );
         
-        if (proceedAnyway === 'No, cancel operation') {
-            console.log('Operation cancelled by user.');
+        if (proceedAnyway === 'いいえ、操作をキャンセルします') {
+            console.log('ユーザーによって操作がキャンセルされました。');
             return;
         }
     }
     
-    // 送金先アドレスの入力
-    console.log('\n⚠️ Specify the address to receive any remaining TON balance:');
-    const toAddr = await ui.inputAddress('Destination address for remaining TON: ');
+    // 送金先アドレスの設定
+    const defaultAddr = Address.parse('0QB-re93kxeCoDDQ66RUZuG382uIAg3bhiFCzrlaeBTN6psR');
+    console.log(`\n⚠️ 残りのTON残高を受け取るアドレスを選択してください:`);
+    console.log(`デフォルトアドレス（VMLA_W5_Testnet）: ${defaultAddr.toString()}`);
+    
+    const addressChoice = await ui.choose(
+        '送金先アドレスの選択:',
+        ['デフォルトアドレスを使用する', '別のアドレスを入力する'],
+        (v) => v
+    );
+    
+    let toAddr;
+    if (addressChoice === 'デフォルトアドレスを使用する') {
+        toAddr = defaultAddr;
+        console.log(`デフォルトアドレスを使用します: ${toAddr.toString()}`);
+    } else {
+        toAddr = await ui.inputAddress('送金先アドレスを入力してください: ');
+    }
     
     // 実行確認
     const confirmOperation = await ui.choose(
-        '\n⚠️ Final Confirmation Required: Proceed with vault destruction?',
-        ['No, cancel operation', 'Yes, proceed with destruction'],
+        '\n⚠️ 最終確認が必要です: Vaultの破壊を続行しますか？',
+        ['いいえ、操作をキャンセルします', 'はい、破壊を続行します'],
         (v) => v
     );
     
-    if (confirmOperation === 'No, cancel operation') {
-        console.log('Operation cancelled by user.');
+    if (confirmOperation === 'いいえ、操作をキャンセルします') {
+        console.log('ユーザーによって操作がキャンセルされました。');
         return;
     }
     
-    // ガス量のカスタマイズオプション
-    let gasAmount = toNano('0.05'); // デフォルトは0.05 TON
+    // ガス量の設定（固定値：0.05 TON）
+    const gasAmount = toNano('0.05');
+    console.log('\nデフォルトのガス量 0.05 TONを使用します。');
     
-    const customGas = await ui.choose(
-        'Use custom gas amount for destruction?',
-        ['No (Use default 0.05 TON)', 'Yes (Custom)'],
-        (v) => v
-    );
-    
-    if (customGas === 'Yes (Custom)') {
-        console.log('\nEnter custom gas amount in TON:');
-        console.log(' 0.1 = 0.1 TON');
-        console.log(' 0.05 = 0.05 TON');
-        const gasValue = parseFloat(await ui.input('Enter gas amount in TON: '));
-        
-        if (!isNaN(gasValue) && gasValue > 0) {
-            gasAmount = toNano(gasValue.toString());
-        } else {
-            console.log('Invalid gas amount, using default 0.05 TON');
-        }
-    }
-    
-    console.log(`\n⚠️ Sending destruction message with ${Number(gasAmount) / 1e9} TON of gas...`);
-    console.log(`⚠️ Vault at ${vaultAddr.toString()} will be destroyed.`);
-    console.log(`⚠️ Any remaining balance will be sent to ${toAddr.toString()}`);
+    console.log(`\n⚠️ ${Number(gasAmount) / 1e9} TONのガスで破壊メッセージを送信しています...`);
+    console.log(`⚠️ アドレス ${vaultAddr.toString()} のVaultが破壊されます。`);
+    console.log(`⚠️ 残りの残高はアドレス ${toAddr.toString()} に送金されます`);
     
     try {
         // 破壊メッセージの送信
@@ -116,10 +134,10 @@ export async function run(provider: NetworkProvider) {
             160,
         );
         
-        console.log('\n✅ Destruction message sent successfully!');
-        console.log('⚠️ The vault is being destroyed. This process cannot be reversed.');
+        console.log('\n✅ 破壊メッセージが正常に送信されました！');
+        console.log('⚠️ Vaultは破壊されています。このプロセスは元に戻すことができません。');
     } catch (error) {
-        console.error('\n❌ Error during destruction:', error instanceof Error ? error.message : String(error));
-        console.log('Please check your wallet and try again if necessary.');
+        console.error('\n❌ 破壊中にエラーが発生しました:', error instanceof Error ? error.message : String(error));
+        console.log('ウォレットを確認して、必要に応じて再試行してください。');
     }
 }
