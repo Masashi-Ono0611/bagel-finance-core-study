@@ -82,13 +82,15 @@ const int INDEX_UNIT = 1000000000;
                 ;; DeDustの場合はプールアドレスを使用
                 dex_address = slice_dex~load_msg_addr(); ;; dex_pool_address
                 slice_dex~load_msg_addr(); ;; dex_jetton_vault_addressをスキップ
-            } else if (dex_type == DEX_TYPE_STONFI()) {
-                ;; StonFiの場合はルーターアドレスを使用
-                dex_address = slice_dex~load_msg_addr(); ;; dex_router_address
-                slice_dex~load_msg_addr(); ;; dex_proxy_ton_addressをスキップ
             } else {
-                ;; 不明なDEXタイプの場合はデフォルトの動作
-                dex_address = slice_dex~load_msg_addr();
+                if (dex_type == DEX_TYPE_STONFI()) {
+                    ;; StonFiの場合はルーターアドレスを使用
+                    dex_address = slice_dex~load_msg_addr(); ;; dex_router_address
+                    slice_dex~load_msg_addr(); ;; dex_proxy_ton_addressをスキップ
+                } else {
+                    ;; 不明なDEXタイプの場合はデフォルトの動作
+                    dex_address = slice_dex~load_msg_addr();
+                }
             }
             
             swap_dex_ton(

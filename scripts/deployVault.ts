@@ -156,7 +156,7 @@ async function inputBasket(ui: any, index: number) {
     console.log(`Note: Weight uses 9 decimals. For example:`);
     console.log(`- 600000000 = 0.60 (60%)`);
     console.log(`- 400000000 = 0.40 (40%)`);
-    console.log(`IMPORTANT: Use the same scale as other Vaults (10^8 order, not 10^13)`);
+    //console.log(`IMPORTANT: Use the same scale as other Vaults (10^8 order, not 10^13)`);
     let weightInput = await ui.input(`Enter weight for Basket ${index + 1}: `);
     while (!weightInput) {
         console.log('Weight is required. Please enter a valid number.');
@@ -341,10 +341,10 @@ export async function run(provider: NetworkProvider) {
         // DeDustの場合
         if (network === 'testnet') {
             dexTonVaultAddress = Address.parse(DEDUST_ROUTER_TESTNET);
-            console.log(`テストネットのDeDustルーターを使用します: ${DEDUST_ROUTER_TESTNET}`);
+            //console.log(`テストネットのDeDustルーターを使用します: ${DEDUST_ROUTER_TESTNET}`);
         } else {
             dexTonVaultAddress = Address.parse(DEDUST_ROUTER_MAINNET);
-            console.log(`メインネットのDeDustルーターを使用します: ${DEDUST_ROUTER_MAINNET}`);
+            //console.log(`メインネットのDeDustルーターを使用します: ${DEDUST_ROUTER_MAINNET}`);
         }
     } else if (primaryDexType === DexType.STONFI) {
         // Stonfiの場合
@@ -352,7 +352,7 @@ export async function run(provider: NetworkProvider) {
         if (baskets.length > 0 && baskets[0].dexRouterAddress) {
             // バスケットからルーターアドレスを使用
             dexTonVaultAddress = baskets[0].dexRouterAddress;
-            console.log(`バスケットから取得したStonFiルーターアドレスを使用します: ${dexTonVaultAddress.toString()}`);
+            //console.log(`バスケットから取得したStonFiルーターアドレスを使用します: ${dexTonVaultAddress.toString()}`);
         } else {
             // バスケットにルーターアドレスが指定されていない場合はデフォルト値を使用
             if (network === 'testnet') {
@@ -367,9 +367,9 @@ export async function run(provider: NetworkProvider) {
                 console.log(`テストネットのStonFiルーターを使用します: ${STONFI_ROUTER_TESTNET}`);
             } else {
                 dexTonVaultAddress = Address.parse(STONFI_ROUTER_MAINNET);
-                console.log(`メインネットのStonFiルーターを使用します: ${STONFI_ROUTER_MAINNET}`);
+                //console.log(`メインネットのStonFiルーターを使用します: ${STONFI_ROUTER_MAINNET}`);
             }
-            console.log(`実際に使用されるアドレス: ${dexTonVaultAddress.toString()}`);
+            //  console.log(`実際に使用されるアドレス: ${dexTonVaultAddress.toString()}`);
         }
     } else {
         // 不明なDEXタイプの場合はデフォルトでDeDustを使用
