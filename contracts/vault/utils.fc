@@ -140,13 +140,14 @@ int DEX_TYPE_STONFI() asm "1 PUSHINT";
     slice dex_proxy_ton_address,
     slice user_address
 ) impure {
-    ;; 固定のJetton Masterアドレス（TestREDトークンのテストネットアドレス）
-    slice jetton_master_address = "kQDLvsZol3juZyOAVG8tWsJntOxeEZWEaWCbbSjYakQpuYN5"a;
+    ;; 使用するルーターに紐づくAPR16のJetton Masterアドレス（一旦テストのために、ハードコードで固定）
+    ;; 参考: https://testnet.tonviewer.com/kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n/jetton/kQBqtvcqnOUQrNN5JLb42AZtNiP7hsFvVNCOqiKUEoNYGkgv
+    slice jetton_address = "kQBKQIkwBe_d50vACml6Ymh9iCdoCz-0OdCrxDTKPRdDHz6C"a;
     
     ;; StonfiSwapペイロードを作成
     cell swap_payload = begin_cell()
         .store_uint(0x25938561, 32) ;; StonfiSwap操作コード
-        .store_slice(jetton_master_address) ;; token_wallet（Jetton Masterアドレス）
+        .store_slice(jetton_address) ;; token_wallet（ルーターに紐づくJetton Masterアドレス）
         .store_coins(1000000) ;; 最小受け取り量（0.001 TON）
         .store_slice(my_address()) ;; 受け取りアドレス（Vaultアドレス）
         .store_uint(0, 1) ;; リファラルなし
