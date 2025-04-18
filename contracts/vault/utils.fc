@@ -85,79 +85,116 @@ slice addr_none() asm "b{00} PUSHSLICE";
 int DEX_TYPE_DEDUST() asm "0 PUSHINT";
 int DEX_TYPE_STONFI() asm "1 PUSHINT";
 
-;; DEX TONスワップ関数（汎用化）
-() swap_dex_ton (
+;; DeDust TONスワップ関数
+() swap_dedust_ton(
     int query_id,
     int swap_amount,
     int gas,
-    slice dex_address, ;; DeDustの場合はdex_pool_address、StonFiの場合はdex_router_address
-    slice user_address,
-    int dex_type
+    slice dex_pool_address,
+    slice user_address
 ) impure {
+    ;; ユーザーアドレスを含むカスタムペイロードを作成
     cell custom_payload = begin_cell()
         .store_slice(user_address)
         .end_cell();
     
-    cell swap_params = null();
-    cell body = null();
-    
-    if (dex_type == DEX_TYPE_DEDUST()) {
-        ;; DeDust用のパラメータ生成
-        swap_params = begin_cell()
-            .store_uint(now() + 5 * 60, 32) ;; deadline:Timestamp
-            .store_slice(my_address()) ;; recipient_addr:MsgAddressInt
-            .store_slice(addr_none()) ;; referral_addr:MsgAddress
-            .store_maybe_ref(custom_payload) ;; fulfill_payload:(Maybe ^Cell)
-            .store_maybe_ref(null()) ;; reject_payload:(Maybe ^Cell)
-            .end_cell();
-            
-        body = begin_cell()
-            .store_uint(op::dedust_ton_swap(), 32)
-            .store_uint(query_id, 64) ;; query_id:int64
-            ;; _:SwapStep
-            .store_coins(swap_amount)
-            .store_slice(dex_address) ;; pool_addr:MsgAddressInt
-            .store_uint(0, 1) ;; kind:SwapKind
-            .store_coins(0) ;; limit:Coins
-            .store_maybe_ref(null()) ;; next
-            .store_ref(swap_params)
-            .end_cell();
-    } else {
-        ;; Stonfi用のパラメータ生成
-        swap_params = begin_cell()
-            .store_uint(now() + 5 * 60, 32) ;; deadline:Timestamp
-            .store_slice(my_address()) ;; recipient_addr:MsgAddressInt
-            .store_slice(addr_none()) ;; referral_addr:MsgAddress
-            .store_maybe_ref(custom_payload) ;; fulfill_payload:(Maybe ^Cell)
-            .store_maybe_ref(null()) ;; reject_payload:(Maybe ^Cell)
-            .end_cell();
-            
-        body = begin_cell()
-            .store_uint(op::stonfi_ton_swap(), 32)
-            .store_uint(query_id, 64) ;; query_id:int64
-            ;; StonFiのパラメータ構造
-            .store_coins(swap_amount)
-            .store_slice(dex_address) ;; router_address:MsgAddressInt
-            .store_uint(0, 1) ;; kind:SwapKind
-            .store_coins(0) ;; limit:Coins
-            .store_maybe_ref(null()) ;; next
-            .store_ref(swap_params)
-            .end_cell();
-    }
-    
-    ;; 送信先アドレスをDEXタイプに応じて選択
-    ;; StonFiの場合はdex_router_addressに直接送信
-    ;; DeDustの場合はstorage::dex_ton_vault_addressに送信
-    slice target_address = dex_type == DEX_TYPE_STONFI() ? dex_address : storage::dex_ton_vault_address;
-    
-    cell msg = begin_cell()
-        .store_uint(0x18, 6)
-        .store_slice(target_address)
-        .store_coins(swap_amount + gas)
-        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1)
-        .store_maybe_ref(body)
+    ;; DeDustスワップパラメータを生成
+    cell swap_params = begin_cell()
+        .store_uint(now() + 5 * 60, 32) ;; deadline:Timestamp（5分後）
+        .store_slice(my_address()) ;; recipient_addr:MsgAddressInt（Vaultアドレス）
+        .store_slice(addr_none()) ;; referral_addr:MsgAddress（リファラルなし）
+        .store_maybe_ref(custom_payload) ;; fulfill_payload（成功時のペイロード）
+        .store_maybe_ref(null()) ;; reject_payload（失敗時のペイロード - なし）
         .end_cell();
+    
+    ;; DeDustスワップメッセージ本体を構築
+    cell body = begin_cell()
+        .store_uint(op::dedust_ton_swap(), 32) ;; DeDustスワップ操作コード
+        .store_uint(query_id, 64) ;; クエリID
+        .store_coins(swap_amount) ;; スワップ金額
+        .store_slice(dex_pool_address) ;; プールアドレス
+        .store_uint(0, 1) ;; スワップ種類（0=通常）
+        .store_coins(0) ;; 制限金額（0=制限なし）
+        .store_maybe_ref(null()) ;; 次のステップ（なし）
+        .store_ref(swap_params) ;; スワップパラメータ
+        .end_cell();
+    
+    ;; DeDustの場合は常にdex_ton_vault_addressに送信
+    cell msg = begin_cell()
+        .store_uint(0x18, 6) ;; 通常の内部メッセージ
+        .store_slice(storage::dex_ton_vault_address) ;; 送信先アドレス
+        .store_coins(swap_amount + gas) ;; 送金額 + ガス代
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1) ;; 標準ヘッダー（すべて0）
+        .store_maybe_ref(body) ;; メッセージ本体
+        .end_cell();
+    
+    ;; メッセージを送信（モード0 = 残高から支払い）
     send_raw_message(msg, 0);
+}
+
+;; StonFi TONスワップ関数
+() swap_stonfi_ton(
+    int query_id,
+    int swap_amount,
+    int gas,
+    slice dex_proxy_ton_address,
+    slice user_address
+) impure {
+    ;; StonfiSwapペイロードを作成
+    cell swap_payload = begin_cell()
+        .store_uint(0x25938561, 32) ;; StonfiSwap操作コード
+        .store_coins(1000000) ;; 最小受け取り量（0.001 TON）
+        .store_slice(my_address()) ;; 受け取りアドレス（Vaultアドレス）
+        .store_uint(0, 1) ;; リファラルなし
+        .end_cell();
+    
+    ;; JettonTransferメッセージを構築
+    cell body = begin_cell()
+        .store_uint(op::transfer(), 32) ;; JettonTransfer操作コード（0xf8a7ea5）
+        .store_uint(12345, 64) ;; 固定クエリID
+        .store_coins(swap_amount) ;; 送金額
+        .store_slice(dex_proxy_ton_address) ;; 送信先（プロキシTONアドレス）
+        .store_slice(my_address()) ;; 応答先（Vaultアドレス）
+        .store_maybe_ref(null()) ;; カスタムペイロードなし
+        .store_coins(swap_amount / 2) ;; フォワードTON量（ガス代）
+        .store_uint(1, 1) ;; フォワードペイロードあり
+        .store_ref(swap_payload) ;; StonfiSwapペイロード
+        .end_cell();
+    
+    ;; StonFiの場合はプロキシTONアドレスに直接送信
+    cell msg = begin_cell()
+        .store_uint(0x18, 6) ;; 通常の内部メッセージ
+        .store_slice(dex_proxy_ton_address) ;; 送信先アドレス
+        .store_coins(swap_amount + gas) ;; 送金額 + ガス代
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1) ;; 標準ヘッダー（すべて0）
+        .store_maybe_ref(body) ;; メッセージ本体
+        .end_cell();
+    
+    ;; メッセージを送信（モード0 = 残高から支払い）
+    send_raw_message(msg, 0);
+}
+
+;; DEX TONスワップ関数（汎用化）- DEXタイプに応じて適切な関数を呼び出す
+() swap_dex_ton(
+    int query_id,
+    int swap_amount,
+    int gas,
+    slice dex_address, ;; DEXタイプに応じて意味が異なる
+    slice user_address,
+    int dex_type
+) impure {
+    if (dex_type == DEX_TYPE_DEDUST()) {
+        ;; DeDustの場合
+        swap_dedust_ton(query_id, swap_amount, gas, dex_address, user_address);
+    } else {
+        if (dex_type == DEX_TYPE_STONFI()) {
+            ;; StonFiの場合
+            swap_stonfi_ton(query_id, swap_amount, gas, dex_address, user_address);
+        } else {
+            ;; 不明なDEXタイプの場合はエラー
+            throw(error::unknown_dex_type());
+        }
+    }
 }
 
 

@@ -106,17 +106,20 @@ const templates: Record<string, VaultTemplate> = {
         decimals: '9',
         baskets: [
             {
-                weight: '600000000',
+                weight: '900000000',
                 jettonMasterAddress: 'kQBqtvcqnOUQrNN5JLb42AZtNiP7hsFvVNCOqiKUEoNYGkgv',
                 dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', 
                 dexProxyTonAddress: 'kQCM3B12QK1e4yZSf8GtBRT0aLMNyEsBc_DhVfRRtOEffAw5',
+                // pTONのJettonMasterAddressをあえて使用する
+                // https://testnet.tonviewer.com/transaction/191847041f82c9c5508e9ba7c23477f8b40276c1e769325ce188f52a11b88047?section=trace
                 dexType: DexType.STONFI
             }, //APR16
             {
-                weight: '400000000',
+                weight: '100000000',
                 jettonMasterAddress: 'kQDLvsZol3juZyOAVG8tWsJntOxeEZWEaWCbbSjYakQpuYN5',
-                dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', // テストネットで見つけたStonFiルーターアドレス
-                dexProxyTonAddress: 'kQCM3B12QK1e4yZSf8GtBRT0aLMNyEsBc_DhVfRRtOEffAw5',
+                dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', 
+                dexProxyTonAddress: 'kQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGHx0I',
+                //pTONのJettonMasterAddressではなく、もう一つのアドレスを使用する
                 dexType: DexType.STONFI
             } //TRT
         ]

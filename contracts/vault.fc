@@ -84,9 +84,12 @@ const int INDEX_UNIT = 1000000000;
                 slice_dex~load_msg_addr(); ;; dex_jetton_vault_addressをスキップ
             } else {
                 if (dex_type == DEX_TYPE_STONFI()) {
-                    ;; StonFiの場合はルーターアドレスを使用
-                    dex_address = slice_dex~load_msg_addr(); ;; dex_router_address
-                    slice_dex~load_msg_addr(); ;; dex_proxy_ton_addressをスキップ
+                    ;; StonFiの場合はルーターアドレスとプロキシTONアドレスを取得
+                    slice router_address = slice_dex~load_msg_addr(); ;; dex_router_address
+                    slice proxy_ton_address = slice_dex~load_msg_addr(); ;; dex_proxy_ton_address
+                    
+                    ;; プロキシTONアドレスをdex_addressとして設定
+                    dex_address = proxy_ton_address;
                 } else {
                     ;; 不明なDEXタイプの場合はデフォルトの動作
                     dex_address = slice_dex~load_msg_addr();
