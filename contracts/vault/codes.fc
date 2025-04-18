@@ -24,6 +24,7 @@ int er::invalid_ton_amount() asm "402 PUSHINT";
 int er::not_enough_gas() asm "403 PUSHINT";
 int er::non_basket_token() asm "404 PUSHINT";
 int er::invalid_vault_data() asm "405 PUSHINT";
+int er::unknown_dex_type() asm "406 PUSHINT"; ;; 不明なDEXタイプエラー
 
 int er::unexpected() asm "999 PUSHINT";
 
