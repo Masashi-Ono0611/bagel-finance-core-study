@@ -60,4 +60,24 @@ export const DEDUST_ROUTER_MAINNET = 'EQDa4VOnTYlLvDJ0gZjNYm5PXfSmmtL6Vs6A_CZEtX
 export const DEDUST_ROUTER_TESTNET = 'EQDa4VOnTYlLvDJ0gZjNYm5PXfSmmtL6Vs6A_CZEtXCNICq_'; // DeDustはtestnet未対応なので仮にメインネットアドレスを使用
 
 export const STONFI_ROUTER_MAINNET = 'EQBfBWT7X2BHg9tXAxzhz2aKiNTU1tpt5NsiK0uSDW_YAJ67'; //他で指定がない場合のみこれを使用
-export const STONFI_ROUTER_TESTNET = 'EQBsGx9ArADUrREB34W-ghgsCgBShvfUr4Jvlu-0KGc33Rbt'; //他で指定がない場合のみこれを使用
+export const STONFI_ROUTER_TESTNET = 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n'; //他で指定がない場合のみこれを使用
+
+// StonFiのプロキシTONアドレス
+export const STONFI_PROXY_TON_MAINNET = 'EQD53PbC8CrHjHgwB8EE6QRBbX5KwNvXHvqZWCEKAweH3JVG';
+export const STONFI_PROXY_TON_TESTNET = 'kQCM3B12QK1e4yZSf8GtBRT0aLMNyEsBc_DhVfRRtOEffAw5'; // Testnetでの動作確認済
+
+// ネットワークごとのアドレスマップ
+export const DEDUST_ROUTER_ADDRESS = {
+    'mainnet': DEDUST_ROUTER_MAINNET,
+    'testnet': DEDUST_ROUTER_TESTNET
+};
+
+export const STONFI_ROUTER_ADDRESS = {
+    'mainnet': STONFI_ROUTER_MAINNET,
+    'testnet': STONFI_ROUTER_TESTNET
+};
+
+export const STONFI_PROXY_TON_ADDRESS = {
+    'mainnet': STONFI_PROXY_TON_MAINNET,
+    'testnet': STONFI_PROXY_TON_TESTNET
+};

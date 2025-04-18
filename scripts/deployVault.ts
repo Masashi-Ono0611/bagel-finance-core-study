@@ -8,7 +8,9 @@ import {
     DEDUST_ROUTER_MAINNET, 
     DEDUST_ROUTER_TESTNET, 
     STONFI_ROUTER_MAINNET, 
-    STONFI_ROUTER_TESTNET 
+    STONFI_ROUTER_TESTNET,
+    STONFI_PROXY_TON_MAINNET,
+    STONFI_PROXY_TON_TESTNET
 } from '../utils/Constants';
 
 // バスケットテンプレート定義
@@ -106,13 +108,15 @@ const templates: Record<string, VaultTemplate> = {
             {
                 weight: '600000000',
                 jettonMasterAddress: 'kQBqtvcqnOUQrNN5JLb42AZtNiP7hsFvVNCOqiKUEoNYGkgv',
-                dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', // StonFiルーターアドレス（例）
+                dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', 
+                dexProxyTonAddress: 'kQCM3B12QK1e4yZSf8GtBRT0aLMNyEsBc_DhVfRRtOEffAw5',
                 dexType: DexType.STONFI
             }, //APR16
             {
                 weight: '400000000',
                 jettonMasterAddress: 'kQDLvsZol3juZyOAVG8tWsJntOxeEZWEaWCbbSjYakQpuYN5',
                 dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', // テストネットで見つけたStonFiルーターアドレス
+                dexProxyTonAddress: 'kQCM3B12QK1e4yZSf8GtBRT0aLMNyEsBc_DhVfRRtOEffAw5',
                 dexType: DexType.STONFI
             } //TRT
         ]
@@ -257,16 +261,14 @@ async function getBaskets(ui: any, templateData?: VaultTemplate, isMainnet: bool
                 });
             } else if (dexType === DexType.STONFI) {
                 // StonFi V1の場合
-                // ルーターアドレスの取得
+                const stonfiRouterAddress = isMainnet ? STONFI_ROUTER_MAINNET : STONFI_ROUTER_TESTNET;
                 const dexRouterAddress = templateBasket.dexRouterAddress ? 
                     Address.parse(templateBasket.dexRouterAddress) : 
-                    Address.parse(isMainnet ? STONFI_ROUTER_MAINNET : STONFI_ROUTER_TESTNET);
-                console.log(`Using StonFi V1 Router Address for Basket ${i + 1}: ${dexRouterAddress.toString()}`);
+                    Address.parse(stonfiRouterAddress);
                 
-                // プロキシTONアドレスの取得（指定がない場合は空のアドレスを使用）
                 const dexProxyTonAddress = templateBasket.dexProxyTonAddress ? 
                     Address.parse(templateBasket.dexProxyTonAddress) : 
-                    Address.parse('EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c');
+                    Address.parse(isMainnet ? STONFI_PROXY_TON_MAINNET : STONFI_PROXY_TON_TESTNET);
                 
                 // StonFi V1の場合も、ダミーのdedustPoolAddressとdedustJettonVaultAddressを設定する
                 // これはストレージの互換性のために必要
@@ -375,16 +377,49 @@ export async function run(provider: NetworkProvider) {
         console.log(`不明なDEXタイプです。デフォルトでDeDustルーターを使用します: ${DEDUST_ROUTER_MAINNET}`);
     }
     
+    // Vault設定の全体像を表示
+    const vaultConfig = {
+        adminAddress: provider.sender()?.address!,
+        content,
+        walletCode: await compile('JettonWallet'),
+        dexTonVaultAddress,
+        baskets,
+    };
+    
+    console.log('\nVault設定の全体像:');
+    console.log('--------------------');
+    console.log(`管理者アドレス: ${vaultConfig.adminAddress.toString()}`);
+    console.log(`DEXアドレス: ${vaultConfig.dexTonVaultAddress.toString()}`);
+    console.log('バスケット:');
+    
+    for (let i = 0; i < vaultConfig.baskets.length; i++) {
+        const basket = vaultConfig.baskets[i];
+        console.log(`\nバスケット ${i + 1}:`);
+        console.log(`  重み: ${basket.weight}`);
+        console.log(`  JettonMasterアドレス: ${basket.jettonMasterAddress.toString()}`);
+        console.log(`  DEXタイプ: ${basket.dexType === 0 ? 'DeDust' : basket.dexType === 1 ? 'StonFi' : '不明'}`);
+        
+        if (basket.dexType === 1) { // StonFi
+            if (basket.dexRouterAddress) {
+                console.log(`  StonFiルーターアドレス: ${basket.dexRouterAddress.toString()}`);
+            }
+            if (basket.dexProxyTonAddress) {
+                console.log(`  StonFiプロキシTONアドレス: ${basket.dexProxyTonAddress.toString()}`);
+            }
+        } else if (basket.dexType === 0) { // DeDust
+            if (basket.dexPoolAddress) {
+                console.log(`  DeDustプールアドレス: ${basket.dexPoolAddress.toString()}`);
+            }
+            if (basket.dexJettonVaultAddress) {
+                console.log(`  DeDust JettonVaultアドレス: ${basket.dexJettonVaultAddress.toString()}`);
+            }
+        }
+    }
+    
     // 3.4 Vaultのデプロイ
     const vault = provider.open(
         Vault.createFromConfig(
-            {
-                adminAddress: provider.sender()?.address!,
-                content,
-                walletCode: await compile('JettonWallet'),
-                dexTonVaultAddress,
-                baskets,
-            },
+            vaultConfig,
             await compile('Vault'),
         ),
     );

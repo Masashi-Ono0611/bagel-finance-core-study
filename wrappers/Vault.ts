@@ -52,12 +52,29 @@ function basketsToDict(baskets: Basket[]) {
         const dexType = basket.dexType !== undefined ? basket.dexType : 0;
         
         // DEX情報を含むセルを作成
-        const dexData = beginCell()
-            // DEXタイプを2ビットで格納（0=DeDust, 1=Stonfi）
-            .storeUint(dexType, 2)
-            .storeAddress(basket.dexPoolAddress)
-            .storeAddress(basket.dexJettonVaultAddress)
-            .endCell();
+        let dexData;
+        if (dexType === 0) { // DeDust
+            dexData = beginCell()
+                // DEXタイプを2ビットで格納（0=DeDust）
+                .storeUint(dexType, 2)
+                .storeAddress(basket.dexPoolAddress)
+                .storeAddress(basket.dexJettonVaultAddress)
+                .endCell();
+        } else if (dexType === 1) { // StonFi
+            dexData = beginCell()
+                // DEXタイプを2ビットで格納（1=Stonfi）
+                .storeUint(dexType, 2)
+                .storeAddress(basket.dexRouterAddress) // StonFiルーターアドレス
+                .storeAddress(basket.dexProxyTonAddress) // StonFiプロキシTONアドレス
+                .endCell();
+        } else {
+            // 不明なDEXタイプの場合はデフォルトでDeDustとして扱う
+            dexData = beginCell()
+                .storeUint(0, 2) // デフォルトで0（DeDust）
+                .storeAddress(basket.dexPoolAddress)
+                .storeAddress(basket.dexJettonVaultAddress)
+                .endCell();
+        }
             
         dictBaskets.set(
             i,
@@ -464,18 +481,101 @@ export class Vault implements Contract {
                         dexSlice = dexData.beginParse();
                     }
                     
-                    const dedustPoolAddress = dexSlice.loadAddress();
-                    const dedustJettonVaultAddress = dexSlice.loadAddress();
+                    // DEXタイプに応じて異なるフィールドを読み込む
+                    let dexPoolAddress;
+                    let dexJettonVaultAddress;
+                    let dexRouterAddress;
+                    let dexProxyTonAddress;
+                    
+                    // デバッグ情報を追加
+                    console.log(`バスケットデータ解析: DEXタイプ=${dexType} (${dexType === 0 ? 'DeDust' : dexType === 1 ? 'StonFi' : '不明'})`);                    
+                    
+                    try {
+                        // デバッグ用にスライスの内容をコピー
+                        const debugSlice = dexSlice.clone();
+                        console.log(`dexSliceのビット数: ${debugSlice.remainingBits}`);
+                        
+                        if (dexType === 0) { // DeDust
+                            dexPoolAddress = dexSlice.loadAddress();
+                            console.log(`DeDustプールアドレス: ${dexPoolAddress}`);
+                            dexJettonVaultAddress = dexSlice.loadAddress();
+                            console.log(`DeDust Jetton Vaultアドレス: ${dexJettonVaultAddress}`);
+                            // StonFi用のフィールドはnullに設定
+                            dexRouterAddress = null;
+                            dexProxyTonAddress = null;
+                        } else if (dexType === 1) { // StonFi
+                            try {
+                                // StonFiの場合、コントラクトのストレージ構造に合わせて読み込む
+                                // まずdexPoolAddressの位置からdexRouterAddressを読み込む
+                                dexRouterAddress = dexSlice.loadAddress();
+                                console.log(`StonFiルーターアドレス: ${dexRouterAddress}`);
+                                
+                                // 次にdexJettonVaultAddressの位置からdexProxyTonAddressを読み込む
+                                if (dexSlice.remainingBits >= 267) { // アドレスに必要なビット数
+                                    dexProxyTonAddress = dexSlice.loadAddress();
+                                    console.log(`StonFiプロキシTONアドレス: ${dexProxyTonAddress}`);
+                                } else {
+                                    console.log('StonFiプロキシTONアドレスが見つかりません');
+                                    dexProxyTonAddress = null;
+                                }
+                            } catch (e) {
+                                console.error('StonFiアドレスの読み込みエラー:', e);
+                                dexRouterAddress = null;
+                                dexProxyTonAddress = null;
+                            }
+                            
+                            // StonFiではプールアドレスとJettonVaultアドレスは使用しない
+                            // しかし、ストレージ構造の互換性のために、dexRouterAddressとdexProxyTonAddressを
+                            // dexPoolAddressとdexJettonVaultAddressとしても設定する
+                            dexPoolAddress = dexRouterAddress;
+                            dexJettonVaultAddress = dexProxyTonAddress;
+                        } else {
+                            // 不明なDEXタイプの場合はデフォルト値を設定
+                            console.log(`不明なDEXタイプ: ${dexType}`);
+                            dexPoolAddress = dexSlice.loadAddress();
+                            dexJettonVaultAddress = dexSlice.loadAddress();
+                        }
+                    } catch (e) {
+                        console.error('バスケットデータ解析エラー:', e);
+                        dexPoolAddress = null;
+                        dexJettonVaultAddress = null;
+                        dexRouterAddress = null;
+                        dexProxyTonAddress = null;
+                    }
+                    
                     const jettonMasterAddress = slice.loadAddress();
                     
-                    baskets.push({
+                    // 新しいフィールド名を使用してバスケットを作成
+                    const basketData: any = {
                         weight,
                         jettonWalletAddress,
-                        dedustPoolAddress,
-                        dedustJettonVaultAddress,
                         jettonMasterAddress,
                         dexType, // DEXタイプ情報を追加
-                    });
+                    };
+                    
+                    // DEXタイプに応じて適切なフィールドを設定
+                    if (dexType === 0) { // DeDust
+                        basketData.dexPoolAddress = dexPoolAddress;
+                        basketData.dexJettonVaultAddress = dexJettonVaultAddress;
+                        basketData.dexRouterAddress = null;
+                        basketData.dexProxyTonAddress = null;
+                    } else if (dexType === 1) { // StonFi
+                        // StonFiの場合、dexPoolAddressとdexJettonVaultAddressの位置に
+                        // dexRouterAddressとdexProxyTonAddressが格納されている可能性がある
+                        basketData.dexRouterAddress = dexRouterAddress;
+                        basketData.dexProxyTonAddress = dexProxyTonAddress;
+                        basketData.dexPoolAddress = null;
+                        basketData.dexJettonVaultAddress = null;
+                    } else {
+                        // 不明なDEXタイプの場合はすべてのフィールドを設定
+                        basketData.dexPoolAddress = dexPoolAddress;
+                        basketData.dexJettonVaultAddress = dexJettonVaultAddress;
+                        basketData.dexRouterAddress = null;
+                        basketData.dexProxyTonAddress = null;
+                    }
+                    
+
+                    baskets.push(basketData);
                 } catch (e) {
                     console.log('バスケット項目の解析エラー。この項目はスキップします。', e);
                 }

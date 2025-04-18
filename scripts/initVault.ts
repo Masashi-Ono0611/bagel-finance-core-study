@@ -1,8 +1,8 @@
-import { Vault } from '../wrappers/Vault';
 import { NetworkProvider } from '@ton/blueprint';
 import { getTonClient } from '../utils/TonClient';
 import { getJettonWalletAddr } from '../utils/Common';
-import { DexType } from '../utils/Constants';
+import { DexType, STONFI_ROUTER_ADDRESS, STONFI_PROXY_TON_ADDRESS } from '../utils/Constants';
+import { Vault } from '../wrappers/Vault';
 
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui();
@@ -46,21 +46,50 @@ export async function run(provider: NetworkProvider) {
         console.log(`\nBasket ${index + 1}:`);
         console.log(`weight: ${basket.weight}`);
         console.log(`jettonWalletAddress: ${basket.jettonWalletAddress}`);
-        console.log(`dedustPoolAddress: ${basket.dedustPoolAddress}`);
-        console.log(`dedustJettonVaultAddress: ${basket.dedustJettonVaultAddress}`);
+        console.log(`dexPoolAddress: ${basket.dexPoolAddress}`);
+        console.log(`dexJettonVaultAddress: ${basket.dexJettonVaultAddress}`);
         console.log(`jettonMasterAddress: ${basket.jettonMasterAddress}`);
         console.log(`dexType: ${basket.dexType !== undefined ? (basket.dexType === DexType.DEDUST ? 'DeDust' : basket.dexType === DexType.STONFI ? 'Stonfi' : 'Unknown') : 'DeDust (default)'}`);
+        
+        // StonFi V1の場合は追加フィールドも表示
+        if (basket.dexType === DexType.STONFI) {
+            if (basket.dexRouterAddress) {
+                console.log(`dexRouterAddress: ${basket.dexRouterAddress}`);
+            }
+            if (basket.dexProxyTonAddress) {
+                console.log(`dexProxyTonAddress: ${basket.dexProxyTonAddress}`);
+            }
+        }
     });
 
     const newBaskets = await Promise.all(
-        vaultData.baskets.map(async (basket: any) => ({
-            weight: basket.weight,
-            jettonWalletAddress: await getJettonWalletAddr(tonClient, basket.jettonMasterAddress, vaultAddr),
-            dedustPoolAddress: basket.dedustPoolAddress,
-            dedustJettonVaultAddress: basket.dedustJettonVaultAddress,
-            jettonMasterAddress: basket.jettonMasterAddress,
-            dexType: basket.dexType !== undefined ? basket.dexType : DexType.DEDUST, // DEXタイプがない場合はデフォルトでDeDust
-        })),
+        vaultData.baskets.map(async (basket: any) => {
+            // 基本情報を取得
+            const result = {
+                weight: basket.weight,
+                jettonWalletAddress: await getJettonWalletAddr(tonClient, basket.jettonMasterAddress, vaultAddr),
+                dexPoolAddress: basket.dexPoolAddress || basket.dedustPoolAddress, // 互換性のために旧式フィールドもチェック
+                dexJettonVaultAddress: basket.dexJettonVaultAddress || basket.dedustJettonVaultAddress, // 互換性のために旧式フィールドもチェック
+                jettonMasterAddress: basket.jettonMasterAddress,
+                dexType: basket.dexType !== undefined ? basket.dexType : DexType.DEDUST, // DEXタイプがない場合はデフォルトでDeDust
+            };
+            
+            // StonFi V1の場合は追加フィールドも設定
+            if (basket.dexType === DexType.STONFI) {
+                // 既存のルーターアドレスがあればそれを使用し、なければ定数から取得
+                // ネットワークタイプは必ずmainnetまたはtestnetに変換して安全に処理
+                const safeNetwork = network === 'mainnet' || network === 'testnet' ? network : 'mainnet';
+                
+                (result as any).dexRouterAddress = basket.dexRouterAddress || STONFI_ROUTER_ADDRESS[safeNetwork];
+                (result as any).dexProxyTonAddress = basket.dexProxyTonAddress || STONFI_PROXY_TON_ADDRESS[safeNetwork];
+                
+                // StonFiではプールアドレスとJettonVaultアドレスは使用しないのでnullを設定
+                result.dexPoolAddress = null;
+                result.dexJettonVaultAddress = null;
+            }
+            
+            return result;
+        }),
     );
 
     console.log('\nNew Basket Configuration:');
@@ -69,10 +98,20 @@ export async function run(provider: NetworkProvider) {
         console.log(`\nBasket ${index + 1}:`);
         console.log(`weight: ${basket.weight}`);
         console.log(`jettonWalletAddress: ${basket.jettonWalletAddress}`);
-        console.log(`dedustPoolAddress: ${basket.dedustPoolAddress}`);
-        console.log(`dedustJettonVaultAddress: ${basket.dedustJettonVaultAddress}`);
+        console.log(`dexPoolAddress: ${basket.dexPoolAddress}`);
+        console.log(`dexJettonVaultAddress: ${basket.dexJettonVaultAddress}`);
         console.log(`jettonMasterAddress: ${basket.jettonMasterAddress}`);
         console.log(`dexType: ${basket.dexType !== undefined ? (basket.dexType === DexType.DEDUST ? 'DeDust' : basket.dexType === DexType.STONFI ? 'Stonfi' : 'Unknown') : 'DeDust (default)'}`);
+        
+        // StonFi V1の場合は追加フィールドも表示
+        if (basket.dexType === DexType.STONFI) {
+            if (basket.dexRouterAddress) {
+                console.log(`dexRouterAddress: ${basket.dexRouterAddress}`);
+            }
+            if (basket.dexProxyTonAddress) {
+                console.log(`dexProxyTonAddress: ${basket.dexProxyTonAddress}`);
+            }
+        }
 
         // Highlight if there are any changes
         if (basket.jettonWalletAddress.toString() !== (vaultData.baskets[index] as any).jettonWalletAddress.toString()) {
