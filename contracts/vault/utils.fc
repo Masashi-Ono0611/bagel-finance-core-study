@@ -161,7 +161,7 @@ int DEX_TYPE_STONFI() asm "1 PUSHINT";
         .store_slice(dex_proxy_ton_address) ;; 送信先（プロキシTONアドレス）
         .store_slice(my_address()) ;; 応答先（Vaultアドレス）
         .store_maybe_ref(null()) ;; カスタムペイロードなし
-        .store_coins(swap_amount / 5) ;; フォワードTON量（ガス代）
+        .store_coins(swap_amount / 3) ;; フォワードTON量（ガス代）
         .store_uint(1, 1) ;; フォワードペイロードあり
         .store_ref(swap_payload) ;; StonfiSwapペイロード
         .end_cell();

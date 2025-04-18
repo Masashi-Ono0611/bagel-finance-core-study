@@ -30,7 +30,7 @@ export async function run(provider: NetworkProvider) {
     },
     testnet: {
       endpoint: "https://testnet.toncenter.com/api/v2/jsonRPC",
-      offerJettonAddress: 'kQBqtvcqnOUQrNN5JLb42AZtNiP7hsFvVNCOqiKUEoNYGkgv', // TestRED
+      offerJettonAddress: 'kQDAjUl0H6Og8OuIZ3FpAzzrVCRW19fE2RCnp2hqVMoYGe_F', // TestUSDT
       minAskAmount: '1', // 最小受け取り量（TON）
       tokenName: 'Jetton',
       explorerUrl: 'https://testnet.tonviewer.com'
