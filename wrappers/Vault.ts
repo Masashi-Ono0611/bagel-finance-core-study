@@ -15,10 +15,14 @@ import { Op } from '../utils/Constants';
 export type Basket = {
     weight: bigint;
     jettonWalletAddress: Address;
-    dedustPoolAddress: Address;
-    dedustJettonVaultAddress: Address;
+    // DEX共通フィールド
+    dexPoolAddress: Address;         // DEXプールアドレス（DeDustの場合はトークンペア別のプール、StonFiの場合はルーターアドレス）
+    dexJettonVaultAddress: Address;   // DEXのJettonVaultアドレス（DeDustの場合は実際のVault、StonFiの場合はダミー）
+    // StonFi V1用追加フィールド
+    dexRouterAddress?: Address;      // StonFi V1のルーターアドレス
+    dexProxyTonAddress?: Address;    // StonFi V1のプロキシTONアドレス
     jettonMasterAddress: Address;
-    dexType?: number; // DEXタイプ（0=DeDust, 1=Stonfi）
+    dexType?: number;                // DEXタイプ（0=DeDust, 1=Stonfi）
 };
 
 export type Waiting = {
@@ -51,8 +55,8 @@ function basketsToDict(baskets: Basket[]) {
         const dexData = beginCell()
             // DEXタイプを2ビットで格納（0=DeDust, 1=Stonfi）
             .storeUint(dexType, 2)
-            .storeAddress(basket.dedustPoolAddress)
-            .storeAddress(basket.dedustJettonVaultAddress)
+            .storeAddress(basket.dexPoolAddress)
+            .storeAddress(basket.dexJettonVaultAddress)
             .endCell();
             
         dictBaskets.set(

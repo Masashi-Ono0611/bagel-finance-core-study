@@ -59,8 +59,5 @@ export abstract class DexType {
 export const DEDUST_ROUTER_MAINNET = 'EQDa4VOnTYlLvDJ0gZjNYm5PXfSmmtL6Vs6A_CZEtXCNICq_';
 export const DEDUST_ROUTER_TESTNET = 'EQDa4VOnTYlLvDJ0gZjNYm5PXfSmmtL6Vs6A_CZEtXCNICq_'; // DeDustはtestnet未対応なので仮にメインネットアドレスを使用
 
-export const STONFI_ROUTER_MAINNET = 'EQBfBWT7X2BHg9tXAxzhz2aKiNTU1tpt5NsiK0uSDW_YAJ67';
-// テストネット用のStonfiルーターアドレス
-// 特殊文字を含むアドレスの例（ハイフンを含む）
-// AddressHelperクラスを使用して安全に解析します
-export const STONFI_ROUTER_TESTNET = 'EQBsGx9ArADUrREB34W-ghgsCgBShvfUr4Jvlu-0KGc33Rbt';
+export const STONFI_ROUTER_MAINNET = 'EQBfBWT7X2BHg9tXAxzhz2aKiNTU1tpt5NsiK0uSDW_YAJ67'; //他で指定がない場合のみこれを使用
+export const STONFI_ROUTER_TESTNET = 'EQBsGx9ArADUrREB34W-ghgsCgBShvfUr4Jvlu-0KGc33Rbt'; //他で指定がない場合のみこれを使用

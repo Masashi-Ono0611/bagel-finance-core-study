@@ -38,7 +38,7 @@ Basket
 ├── weight: Int (重み、9桁の小数点を使用)
 ├── jetton_wallet_address: Address (Jettonウォレットアドレス)
 ├── jetton_master_address: Address (JettonマスターアドレスまたはMinter)
-├── dex_pool_address: Address (DEXプールアドレス)
+├── dex_pool_address: Address (DEXプールアドレス, DeDustはトークンペア別の任意プールアドレスを使用、Stonfiはルーターアドレスを設定)
 ├── dex_jetton_vault_address: Address (DEXのJettonVaultアドレス)
 └── dex_type: Int (DEXタイプ、0=DeDust, 1=Stonfi)
 ```

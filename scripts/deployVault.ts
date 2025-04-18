@@ -15,10 +15,13 @@ import {
 interface BasketTemplate {
     weight: string;
     jettonMasterAddress: string;
-    dedustPoolAddress?: string;
-    dedustJettonVaultAddress?: string;
-    stonfiPoolAddress?: string; // StonfiプールアドレスはDeDustと構造が異なる
-    dexType?: number; // DEXタイプ（0=DeDust, 1=Stonfi）
+    // DEX共通フィールド
+    dexPoolAddress?: string;         // DEXプールアドレス（DeDustの場合はトークンペア別のプール、StonFiの場合はルーターアドレス）
+    dexJettonVaultAddress?: string;   // DEXのJettonVaultアドレス（DeDustの場合は実際のVault、StonFiの場合はダミー）
+    // StonFi V1用追加フィールド
+    dexRouterAddress?: string;       // StonFi V1のルーターアドレス
+    dexProxyTonAddress?: string;     // StonFi V1のプロキシTONアドレス
+    dexType?: number;                // DEXタイプ（0=DeDust, 1=Stonfi）
 }
 
 interface VaultTemplate {
@@ -36,15 +39,15 @@ const templates: Record<string, VaultTemplate> = {
             {
                 weight: '600000000',
                 jettonMasterAddress: 'EQDPdq8xjAhytYqfGSX8KcFWIReCufsB9Wdg0pLlYSO_h76w',
-                dedustPoolAddress: 'EQBWsAdyAg-8fs3G-m-eUBCXZuVaOldF5-tCMJBJzxQG7nLX',
-                dedustJettonVaultAddress: 'EQCRjILmJD0ZD7y6POFyicCx20PoypkEwHJ64AMJ7vwkXGjm',
+                dexPoolAddress: 'EQBWsAdyAg-8fs3G-m-eUBCXZuVaOldF5-tCMJBJzxQG7nLX',
+                dexJettonVaultAddress: 'EQCRjILmJD0ZD7y6POFyicCx20PoypkEwHJ64AMJ7vwkXGjm',
                 dexType: DexType.DEDUST
             }, //hTON
             {
                 weight: '400000000',
                 jettonMasterAddress: 'EQB0SoxuGDx5qjVt0P_bPICFeWdFLBmVopHhjgfs0q-wsTON',
-                dedustPoolAddress: 'EQABt8YegyD7VJnZdFVwom8wwqp0E0X8tN2Y6NhrDmbrnSXP',
-                dedustJettonVaultAddress: 'EQCKfS6qMSigCc93CKzv-pBJow2w9TEyadDVZVIR8U-d-iVj',
+                dexPoolAddress: 'EQABt8YegyD7VJnZdFVwom8wwqp0E0X8tN2Y6NhrDmbrnSXP',
+                dexJettonVaultAddress: 'EQCKfS6qMSigCc93CKzv-pBJow2w9TEyadDVZVIR8U-d-iVj',
                 dexType: DexType.DEDUST
             } //wsTON
         ]
@@ -56,22 +59,22 @@ const templates: Record<string, VaultTemplate> = {
             {
                 weight: '340000000',
                 jettonMasterAddress: 'EQDPdq8xjAhytYqfGSX8KcFWIReCufsB9Wdg0pLlYSO_h76w',
-                dedustPoolAddress: 'EQBWsAdyAg-8fs3G-m-eUBCXZuVaOldF5-tCMJBJzxQG7nLX',
-                dedustJettonVaultAddress: 'EQCRjILmJD0ZD7y6POFyicCx20PoypkEwHJ64AMJ7vwkXGjm',
+                dexPoolAddress: 'EQBWsAdyAg-8fs3G-m-eUBCXZuVaOldF5-tCMJBJzxQG7nLX',
+                dexJettonVaultAddress: 'EQCRjILmJD0ZD7y6POFyicCx20PoypkEwHJ64AMJ7vwkXGjm',
                 dexType: DexType.DEDUST
             }, //hTON
             {
                 weight: '330000000',
                 jettonMasterAddress: 'EQCqC6EhRJ_tpWngKxL6dV0k6DSnRUrs9GSVkLbfdCqsj6TE',
-                dedustPoolAddress: 'EQBcXOgImwib9hI7vRLuBtTbMp3EES1rKiqyr8c2WtcRH2eO',
-                dedustJettonVaultAddress: 'EQB2PfLwzabJO1cMtarDdcIdW8l78IvH2Y8r396Fno-TNnf7',
+                dexPoolAddress: 'EQBcXOgImwib9hI7vRLuBtTbMp3EES1rKiqyr8c2WtcRH2eO',
+                dexJettonVaultAddress: 'EQB2PfLwzabJO1cMtarDdcIdW8l78IvH2Y8r396Fno-TNnf7',
                 dexType: DexType.DEDUST
             },//STAKED
             {
                 weight: '330000000',
                 jettonMasterAddress: 'EQB0SoxuGDx5qjVt0P_bPICFeWdFLBmVopHhjgfs0q-wsTON',
-                dedustPoolAddress: 'EQABt8YegyD7VJnZdFVwom8wwqp0E0X8tN2Y6NhrDmbrnSXP',
-                dedustJettonVaultAddress: 'EQCKfS6qMSigCc93CKzv-pBJow2w9TEyadDVZVIR8U-d-iVj',
+                dexPoolAddress: 'EQABt8YegyD7VJnZdFVwom8wwqp0E0X8tN2Y6NhrDmbrnSXP',
+                dexJettonVaultAddress: 'EQCKfS6qMSigCc93CKzv-pBJow2w9TEyadDVZVIR8U-d-iVj',
                 dexType: DexType.DEDUST
             }//wsTON
         ]
@@ -83,15 +86,15 @@ const templates: Record<string, VaultTemplate> = {
             {
                 weight: '600000000',
                 jettonMasterAddress: 'kQDZF8LaqYGxBqACM-oA6w8cpIPwzMAimn4TFhNKsfPMtGHw',
-                dedustPoolAddress: 'EQBWsAdyAg-8fs3G-m-eUBCXZuVaOldF5-tCMJBJzxQG7nLX',//仮の値
-                dedustJettonVaultAddress: 'EQCRjILmJD0ZD7y6POFyicCx20PoypkEwHJ64AMJ7vwkXGjm',//仮の値
+                dexPoolAddress: 'EQBWsAdyAg-8fs3G-m-eUBCXZuVaOldF5-tCMJBJzxQG7nLX',//仮の値
+                dexJettonVaultAddress: 'EQCRjILmJD0ZD7y6POFyicCx20PoypkEwHJ64AMJ7vwkXGjm',//仮の値
                 dexType: DexType.DEDUST
             }, //APR14002
             {
                 weight: '400000000',
                 jettonMasterAddress: 'kQDLvsZol3juZyOAVG8tWsJntOxeEZWEaWCbbSjYakQpuYN5',
-                dedustPoolAddress: 'EQABt8YegyD7VJnZdFVwom8wwqp0E0X8tN2Y6NhrDmbrnSXP',//仮の値
-                dedustJettonVaultAddress: 'EQCKfS6qMSigCc93CKzv-pBJow2w9TEyadDVZVIR8U-d-iVj',//仮の値
+                dexPoolAddress: 'EQABt8YegyD7VJnZdFVwom8wwqp0E0X8tN2Y6NhrDmbrnSXP',//仮の値
+                dexJettonVaultAddress: 'EQCKfS6qMSigCc93CKzv-pBJow2w9TEyadDVZVIR8U-d-iVj',//仮の値
                 dexType: DexType.DEDUST
             } //TRT
         ]
@@ -102,14 +105,14 @@ const templates: Record<string, VaultTemplate> = {
         baskets: [
             {
                 weight: '600000000',
-                jettonMasterAddress: 'kQDZF8LaqYGxBqACM-oA6w8cpIPwzMAimn4TFhNKsfPMtGHw',
-                stonfiPoolAddress: 'kQBMHZC2j9xT-wnbzuDmIVjkE2j39n91LsjV7-7vlWS302WR', // StonFiプールアドレス（例）
+                jettonMasterAddress: 'kQBqtvcqnOUQrNN5JLb42AZtNiP7hsFvVNCOqiKUEoNYGkgv',
+                dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', // StonFiルーターアドレス（例）
                 dexType: DexType.STONFI
-            }, //APR14002
+            }, //APR16
             {
                 weight: '400000000',
                 jettonMasterAddress: 'kQDLvsZol3juZyOAVG8tWsJntOxeEZWEaWCbbSjYakQpuYN5',
-                stonfiPoolAddress: 'kQB6PDvbGUx0UBqFxql00Rnmq1D02_dXVCWCGzCzXv6y9zrE', // テストネットで見つけたStonFiプールアドレス
+                dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', // テストネットで見つけたStonFiルーターアドレス
                 dexType: DexType.STONFI
             } //TRT
         ]
@@ -169,24 +172,41 @@ async function inputBasket(ui: any, index: number) {
     const dexName = dexType === DexType.DEDUST ? 'DeDust' : 'Stonfi';
     
     const jettonMasterAddress = Address.parse(await ui.input(`Enter Jetton Master Address for Basket ${index + 1}: `));
-    const dedustPoolAddress = Address.parse(await ui.input(`Enter ${dexName} Pool Address for Basket ${index + 1}: `));
-    const dedustJettonVaultAddress = Address.parse(await ui.input(`Enter ${dexName} Jetton Vault Address for Basket ${index + 1}: `));
+    const dexPoolAddress = Address.parse(await ui.input(`Enter ${dexName} Pool Address for Basket ${index + 1}: `));
+    const dexJettonVaultAddress = Address.parse(await ui.input(`Enter ${dexName} Jetton Vault Address for Basket ${index + 1}: `));
 
     // Note: jettonWalletAddress will be determined during initVault
     // Here we use a placeholder address that will be replaced
     const placeholderWalletAddress = Address.parse('EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c');
 
+    // StonFi V1の場合は追加フィールドも設定
+    if (dexType === DexType.STONFI) {
+        const dexRouterAddress = Address.parse(await ui.input(`Enter StonFi Router Address for Basket ${index + 1}: `));
+        const dexProxyTonAddress = Address.parse(await ui.input(`Enter StonFi Proxy TON Address for Basket ${index + 1}: `));
+        
+        return {
+            weight,
+            jettonWalletAddress: placeholderWalletAddress,
+            dexPoolAddress,
+            dexJettonVaultAddress,
+            dexRouterAddress,
+            dexProxyTonAddress,
+            jettonMasterAddress,
+            dexType
+        };
+    }
+
     return {
         weight,
-        jettonWalletAddress: placeholderWalletAddress, // This will be set during initVault
-        dedustPoolAddress,
-        dedustJettonVaultAddress,
+        jettonWalletAddress: placeholderWalletAddress,
+        dexPoolAddress,
+        dexJettonVaultAddress,
         jettonMasterAddress,
         dexType
     };
 }
 
-async function getBaskets(ui: any, templateData?: VaultTemplate) {
+async function getBaskets(ui: any, templateData?: VaultTemplate, isMainnet: boolean = false) {
     if (templateData) {
         const basketCount = templateData.baskets.length;
         console.log(`Using template with ${basketCount} baskets`);
@@ -217,40 +237,49 @@ async function getBaskets(ui: any, templateData?: VaultTemplate) {
             // DEXタイプに応じて必要なアドレスを取得
             if (dexType === DexType.DEDUST) {
                 // DeDustの場合
-                if (!templateBasket.dedustPoolAddress || !templateBasket.dedustJettonVaultAddress) {
-                    throw new Error(`Basket ${i + 1} is configured as DeDust but missing required DeDust addresses`);
+                if (!templateBasket.dexPoolAddress || !templateBasket.dexJettonVaultAddress) {
+                    throw new Error(`Basket ${i + 1} is configured as DeDust but missing required DEX addresses`);
                 }
                 
-                const dedustPoolAddress = Address.parse(templateBasket.dedustPoolAddress);
-                console.log(`Enter DeDust Pool Address for Basket ${i + 1}: ${templateBasket.dedustPoolAddress}`);
+                const dexPoolAddress = Address.parse(templateBasket.dexPoolAddress);
+                console.log(`Enter DEX Pool Address for Basket ${i + 1}: ${templateBasket.dexPoolAddress}`);
                 
-                const dedustJettonVaultAddress = Address.parse(templateBasket.dedustJettonVaultAddress);
-                console.log(`Enter DeDust Jetton Vault Address for Basket ${i + 1}: ${templateBasket.dedustJettonVaultAddress}`);
+                const dexJettonVaultAddress = Address.parse(templateBasket.dexJettonVaultAddress);
+                console.log(`Enter DEX Jetton Vault Address for Basket ${i + 1}: ${templateBasket.dexJettonVaultAddress}`);
                 
                 baskets.push({
                     weight,
                     jettonWalletAddress: placeholderWalletAddress,
-                    dedustPoolAddress,
-                    dedustJettonVaultAddress,
+                    dexPoolAddress,
+                    dexJettonVaultAddress,
                     jettonMasterAddress,
                     dexType
                 });
             } else if (dexType === DexType.STONFI) {
-                // Stonfiの場合
-                if (!templateBasket.stonfiPoolAddress) {
-                    throw new Error(`Basket ${i + 1} is configured as Stonfi but missing required Stonfi pool address`);
-                }
+                // StonFi V1の場合
+                // ルーターアドレスの取得
+                const dexRouterAddress = templateBasket.dexRouterAddress ? 
+                    Address.parse(templateBasket.dexRouterAddress) : 
+                    Address.parse(isMainnet ? STONFI_ROUTER_MAINNET : STONFI_ROUTER_TESTNET);
+                console.log(`Using StonFi V1 Router Address for Basket ${i + 1}: ${dexRouterAddress.toString()}`);
                 
-                const stonfiPoolAddress = Address.parse(templateBasket.stonfiPoolAddress);
-                console.log(`Enter Stonfi Pool Address for Basket ${i + 1}: ${templateBasket.stonfiPoolAddress}`);
+                // プロキシTONアドレスの取得（指定がない場合は空のアドレスを使用）
+                const dexProxyTonAddress = templateBasket.dexProxyTonAddress ? 
+                    Address.parse(templateBasket.dexProxyTonAddress) : 
+                    Address.parse('EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c');
                 
-                // Stonfiの場合、DeDustアドレスの代わりにStonfiアドレスを使用
-                // 内部的には同じフィールドを使い回すが、コントラクト側で適切に処理される
+                // StonFi V1の場合も、ダミーのdedustPoolAddressとdedustJettonVaultAddressを設定する
+                // これはストレージの互換性のために必要
+                const dummyPoolAddress = Address.parse('EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c');
+                const dummyJettonVaultAddress = Address.parse('EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c');
+                
                 baskets.push({
                     weight,
                     jettonWalletAddress: placeholderWalletAddress,
-                    dedustPoolAddress: stonfiPoolAddress, // Stonfiプールアドレスを格納
-                    dedustJettonVaultAddress: stonfiPoolAddress, // Stonfiでは同じアドレスを使用
+                    dexRouterAddress, // StonFi V1用のルーターアドレス
+                    dexProxyTonAddress, // StonFi V1用のプロキシアドレス
+                    dexPoolAddress: dummyPoolAddress, // ダミーのプールアドレス
+                    dexJettonVaultAddress: dummyJettonVaultAddress, // ダミーのJettonVaultアドレス
                     jettonMasterAddress,
                     dexType
                 });
@@ -287,8 +316,12 @@ export async function run(provider: NetworkProvider) {
     // 3.1 Jettonコンテンツの設定
     const content = await getJettonContent(ui, selectedTemplate);
 
+    // ネットワーク情報の取得
+    const network = provider.network();
+    const isMainnet = network !== 'testnet';
+    
     // 3.2 バスケットの設定
-    const baskets = await getBaskets(ui, selectedTemplate);
+    const baskets = await getBaskets(ui, selectedTemplate, isMainnet);
 
     // 3.3 DEXタイプに応じたルーターアドレスの取得
     // バスケットから使用されているDEXタイプを確認
@@ -300,7 +333,6 @@ export async function run(provider: NetworkProvider) {
     }
     
     // ネットワークに応じたアドレスを選択
-    const network = provider.network();
     let dexTonVaultAddress: Address;
     
     if (primaryDexType === DexType.DEDUST) {
@@ -314,23 +346,28 @@ export async function run(provider: NetworkProvider) {
         }
     } else if (primaryDexType === DexType.STONFI) {
         // Stonfiの場合
-        if (network === 'testnet') {
-            // 特殊文字を含むアドレスの場合は、元のアドレス形式を保持するように注意
-            try {
-                // 直接アドレス文字列を使用して解析する
-                dexTonVaultAddress = Address.parse(STONFI_ROUTER_TESTNET);
-            } catch (error) {
-                console.warn(`アドレスの解析に失敗しました。AddressHelperを使用します。`);
-                // バイナリ形式でアドレスを取得
-                dexTonVaultAddress = AddressHelper.getStonfiTestnetRouterAddress();
-            }
-            // 元のアドレス文字列をログに表示
-            console.log(`テストネットのStonFiルーターを使用します: ${STONFI_ROUTER_TESTNET}`);
-            // 実際に使用されるアドレスを確認用に表示
-            console.log(`実際に使用されるアドレス: ${dexTonVaultAddress.toString()}`);
+        // バスケットからルーターアドレスを取得
+        if (baskets.length > 0 && baskets[0].dexRouterAddress) {
+            // バスケットからルーターアドレスを使用
+            dexTonVaultAddress = baskets[0].dexRouterAddress;
+            console.log(`バスケットから取得したStonFiルーターアドレスを使用します: ${dexTonVaultAddress.toString()}`);
         } else {
-            dexTonVaultAddress = Address.parse(STONFI_ROUTER_MAINNET);
-            console.log(`メインネットのStonFiルーターを使用します: ${STONFI_ROUTER_MAINNET}`);
+            // バスケットにルーターアドレスが指定されていない場合はデフォルト値を使用
+            if (network === 'testnet') {
+                try {
+                    // 直接アドレス文字列を使用して解析する
+                    dexTonVaultAddress = Address.parse(STONFI_ROUTER_TESTNET);
+                } catch (error) {
+                    console.warn(`アドレスの解析に失敗しました。AddressHelperを使用します。`);
+                    // バイナリ形式でアドレスを取得
+                    dexTonVaultAddress = AddressHelper.getStonfiTestnetRouterAddress();
+                }
+                console.log(`テストネットのStonFiルーターを使用します: ${STONFI_ROUTER_TESTNET}`);
+            } else {
+                dexTonVaultAddress = Address.parse(STONFI_ROUTER_MAINNET);
+                console.log(`メインネットのStonFiルーターを使用します: ${STONFI_ROUTER_MAINNET}`);
+            }
+            console.log(`実際に使用されるアドレス: ${dexTonVaultAddress.toString()}`);
         }
     } else {
         // 不明なDEXタイプの場合はデフォルトでDeDustを使用
