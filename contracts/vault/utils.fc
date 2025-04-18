@@ -138,16 +138,16 @@ int DEX_TYPE_STONFI() asm "1 PUSHINT";
     int swap_amount,
     int gas,
     slice dex_proxy_ton_address,
-    slice user_address
+    slice user_address,
+    slice jetton_wallet_address  ;; 追加: バスケットから取得したjettonWalletAddress
 ) impure {
-    ;; 使用するルーターに紐づくAPR16のJetton Masterアドレス（一旦テストのために、ハードコードで固定）
-    ;; 参考: https://testnet.tonviewer.com/kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n/jetton/kQBqtvcqnOUQrNN5JLb42AZtNiP7hsFvVNCOqiKUEoNYGkgv
-    slice jetton_address = "kQBKQIkwBe_d50vACml6Ymh9iCdoCz-0OdCrxDTKPRdDHz6C"a;
+    ;; バスケットから取得したjetton_wallet_addressを直接使用
+    ;; デプロイ時にチェックされているので、ここでのチェックは不要
     
     ;; StonfiSwapペイロードを作成
     cell swap_payload = begin_cell()
         .store_uint(0x25938561, 32) ;; StonfiSwap操作コード
-        .store_slice(jetton_address) ;; token_wallet（ルーターに紐づくJetton Masterアドレス）
+        .store_slice(jetton_wallet_address) ;; token_wallet（バスケットから取得したアドレス）
         .store_coins(1) ;; 最小受け取り量
         .store_slice(my_address()) ;; 受け取りアドレス（Vaultアドレス）
         .store_uint(0, 1) ;; リファラルなし
@@ -186,7 +186,8 @@ int DEX_TYPE_STONFI() asm "1 PUSHINT";
     int gas,
     slice dex_address, ;; DEXタイプに応じて意味が異なる
     slice user_address,
-    int dex_type
+    int dex_type,
+    slice jetton_wallet_address ;; 追加: バスケットから取得したjettonWalletAddress
 ) impure {
     if (dex_type == DEX_TYPE_DEDUST()) {
         ;; DeDustの場合
@@ -194,7 +195,7 @@ int DEX_TYPE_STONFI() asm "1 PUSHINT";
     } else {
         if (dex_type == DEX_TYPE_STONFI()) {
             ;; StonFiの場合
-            swap_stonfi_ton(query_id, swap_amount, gas, dex_address, user_address);
+            swap_stonfi_ton(query_id, swap_amount, gas, dex_address, user_address, jetton_wallet_address);
         } else {
             ;; 不明なDEXタイプの場合はエラー
             throw(er::unknown_dex_type());

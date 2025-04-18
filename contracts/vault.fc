@@ -64,7 +64,7 @@ const int INDEX_UNIT = 1000000000;
             throw_unless(er::unexpected(), found_baskets);
             slice  slice_baskets = cell_baskets.begin_parse();
             slice_baskets~load_coins(); ;; weight
-            slice_baskets~load_msg_addr(); ;; jetton wallet address
+            slice jetton_wallet_address = slice_baskets~load_msg_addr(); ;; jetton wallet address
             cell dex_data = slice_baskets~load_ref();
             slice slice_dex = dex_data.begin_parse();
             ;; DEXタイプを読み込む（既存のバスケットにはタイプがないため、デフォルトでDeDustとして処理）
@@ -102,7 +102,8 @@ const int INDEX_UNIT = 1000000000;
                 gas_per_basket,
                 dex_address,
                 sender_address,
-                dex_type
+                dex_type,
+                jetton_wallet_address
             );
             i += 1;
         }
