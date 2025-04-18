@@ -107,6 +107,46 @@ const int INDEX_UNIT = 1000000000;
             );
             i += 1;
         }
+        ;; Stonfiバスケット数をカウント
+        int stonfi_basket_count = 0;
+        int i = 0;
+        while (i < storage::num_baskets) {
+            (cell data_baskets, int found_baskets) = storage::dict_baskets.udict_get_ref?(8, i);
+            throw_unless(er::invalid_vault_data(), found_baskets);
+            
+            slice slice_baskets = data_baskets.begin_parse();
+            slice_baskets~load_coins(); ;; weight
+            slice_baskets~load_msg_addr(); ;; jetton_wallet_address
+            cell dex_data = slice_baskets~load_ref();
+            slice slice_dex = dex_data.begin_parse();
+            
+            ;; DEXタイプを読み込む
+            int dex_type = DEX_TYPE_DEDUST();
+            if (~ slice_dex.slice_empty?()) {
+                dex_type = slice_dex~load_uint(2);
+            }
+            
+            ;; Stonfiタイプのバスケットをカウント
+            if (dex_type == DEX_TYPE_STONFI()) {
+                stonfi_basket_count += 1;
+            }
+            
+            i += 1;
+        }
+        
+        ;; Stonfiバスケットがある場合、ユーザー情報を登録
+        if (stonfi_basket_count > 0) {
+            storage::dict_stonfi_queries~udict_set_builder(
+                64,
+                query_id,
+                begin_cell()
+                    .store_slice(sender_address)  ;; ユーザーアドレス
+                    .store_uint(stonfi_basket_count, 8)  ;; 期待するExcessメッセージ数
+                    .store_uint(0, 8)  ;; 受信カウンター（初期値0）
+            );
+            save_storage();
+        }
+        
         ;; Do not send excess gas here to allow it to naturally flow to the next step in the transaction chain
         ;; The excess gas (msg_value - total_swap_amount - gas) will be automatically carried to the next operation
         return ();
@@ -268,10 +308,62 @@ const int INDEX_UNIT = 1000000000;
     if (op == op::excesses()) {
         ;; 外部からのexcesses呼び出し時にガスをそのまま累積
         int excess_gas = msg_value;
+        
+        ;; クエリIDに対応するユーザー情報を取得
+        (slice user_data, int found) = storage::dict_stonfi_queries.udict_get?(64, query_id);
+        
+        if (found) {
+            ;; ユーザー情報を取得
+            slice user_address = user_data~load_msg_addr();
+            int expected_count = user_data~load_uint(8);
+            int received_count = user_data~load_uint(8);
+            
+            ;; 受信カウンターを増やす
+            received_count += 1;
+            
+            ;; すべてのExcessメッセージを受信したか確認
+            if (received_count >= expected_count) {
+                ;; ミント処理を実行
+                int mint_amount = INDEX_UNIT;  ;; 簡略化：固定ミント量
+                
+                mint_index(
+                    query_id,
+                    user_address,
+                    storage::jetton_wallet_code,
+                    GAS_PER_MINT_SEND,
+                    mint_amount
+                );
+                
+                storage::total_supply += mint_amount;
+                
+                ;; 処理完了後、エントリを削除
+                storage::dict_stonfi_queries~udict_delete?(64, query_id);
+            } else {
+                ;; 更新された受信カウンターを保存
+                storage::dict_stonfi_queries~udict_set_builder(
+                    64,
+                    query_id,
+                    begin_cell()
+                        .store_slice(user_address)
+                        .store_uint(expected_count, 8)
+                        .store_uint(received_count, 8)
+                );
+            }
+            
+            save_storage();
+            
+            ;; ミント処理完了後、累積したガスを送信
+            if (received_count >= expected_count) {
+                send_accumulated_gas(query_id, user_address);
+            }
+        }
+        
+        ;; 超過ガスを累積
         if (excess_gas > 0) {
             accumulate_excess_gas(excess_gas);
             save_storage();
         }
+        
         return (); ;;超過ガスの送付はここでは実施しない
     }
     

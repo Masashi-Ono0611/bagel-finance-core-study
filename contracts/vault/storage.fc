@@ -9,7 +9,7 @@ global slice storage::dex_ton_vault_address; ;; DEX (DeDust/Stonfi) TON vault ad
 global cell storage::dict_baskets;
 global cell storage::dict_waitings;
 global int storage::accumulated_gas;
-
+global cell storage::dict_stonfi_queries; ;; StonfiSwapのユーザー情報（キー: クエリID, 値: ユーザーアドレスと期待するExcessメッセージ数）
 
 () load_storage() impure inline {
     slice ds = get_data().begin_parse();
@@ -25,6 +25,13 @@ global int storage::accumulated_gas;
     storage::dict_baskets = ds~load_dict();
     storage::dict_waitings = ds~load_dict();
     storage::accumulated_gas = ds~load_coins();
+    
+    ;; StonfiSwapのユーザー情報を読み込み（存在する場合）
+    if (~ ds.slice_empty?()) {
+        storage::dict_stonfi_queries = ds~load_dict();
+    } else {
+        storage::dict_stonfi_queries = new_dict();
+    }
 }
 
 () save_storage() impure inline {
@@ -42,6 +49,7 @@ global int storage::accumulated_gas;
         .store_dict(storage::dict_baskets)
         .store_dict(storage::dict_waitings)
         .store_coins(storage::accumulated_gas)
+        .store_dict(storage::dict_stonfi_queries) ;; StonfiSwapのユーザー情報を保存
         .end_cell();
     set_data(data);
 }
