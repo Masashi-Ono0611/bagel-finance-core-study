@@ -136,6 +136,16 @@ const int INDEX_UNIT = 1000000000;
         
         ;; Stonfiバスケットがある場合、ユーザー情報を登録
         if (stonfi_basket_count > 0) {
+            ;; メッセージにMint量が指定されているか確認
+            int requested_mint_amount = 0;
+            if (~ in_msg_body.slice_empty?()) {
+                ;; メッセージからMint量を読み込む
+                requested_mint_amount = in_msg_body~load_coins();
+            } else {
+                ;; デフォルトのMint量を設定
+                requested_mint_amount = INDEX_UNIT;
+            }
+            
             storage::dict_stonfi_queries~udict_set_builder(
                 64,
                 query_id,
@@ -143,6 +153,7 @@ const int INDEX_UNIT = 1000000000;
                     .store_slice(sender_address)  ;; ユーザーアドレス
                     .store_uint(stonfi_basket_count, 8)  ;; 期待するExcessメッセージ数
                     .store_uint(0, 8)  ;; 受信カウンター（初期値0）
+                    .store_coins(requested_mint_amount)  ;; ユーザー指定のMint量
             );
             save_storage();
         }
@@ -313,10 +324,12 @@ const int INDEX_UNIT = 1000000000;
         (slice user_data, int found) = storage::dict_stonfi_queries.udict_get?(64, query_id);
         
         if (found) {
+            ;; StonFiの場合の処理
             ;; ユーザー情報を取得
             slice user_address = user_data~load_msg_addr();
             int expected_count = user_data~load_uint(8);
             int received_count = user_data~load_uint(8);
+            int requested_mint_amount = user_data~load_coins();
             
             ;; 受信カウンターを増やす
             received_count += 1;
@@ -324,17 +337,15 @@ const int INDEX_UNIT = 1000000000;
             ;; すべてのExcessメッセージを受信したか確認
             if (received_count >= expected_count) {
                 ;; ミント処理を実行
-                int mint_amount = INDEX_UNIT;  ;; 簡略化：固定ミント量
-                
                 mint_index(
                     query_id,
                     user_address,
                     storage::jetton_wallet_code,
                     GAS_PER_MINT_SEND,
-                    mint_amount
+                    requested_mint_amount
                 );
                 
-                storage::total_supply += mint_amount;
+                storage::total_supply += requested_mint_amount;
                 
                 ;; 処理完了後、エントリを削除
                 storage::dict_stonfi_queries~udict_delete?(64, query_id);
@@ -347,24 +358,24 @@ const int INDEX_UNIT = 1000000000;
                         .store_slice(user_address)
                         .store_uint(expected_count, 8)
                         .store_uint(received_count, 8)
+                        .store_coins(requested_mint_amount)
                 );
             }
-            
-            save_storage();
-            
-            ;; ミント処理完了後、累積したガスを送信
-            if (received_count >= expected_count) {
-                send_accumulated_gas(query_id, user_address);
+        } else {
+            ;; DeDustの場合の処理
+            ;; 単にガスを累積するだけ
+            if (excess_gas > 0) {
+                accumulate_excess_gas(excess_gas);
+                save_storage();
             }
+            return (); ;;超過ガスの送付はここでは実施しない
         }
         
-        ;; 超過ガスを累積
         if (excess_gas > 0) {
             accumulate_excess_gas(excess_gas);
             save_storage();
         }
-        
-        return (); ;;超過ガスの送付はここでは実施しない
+        return ();
     }
     
     if (op == op::excesses_without_accumulated()) {
