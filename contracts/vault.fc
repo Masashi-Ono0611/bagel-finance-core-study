@@ -446,8 +446,31 @@ const int INDEX_UNIT = 1000000000;
                 ;; 先頭バイトがタイプ情報であるか確認
                 dex_type = slice_dex~load_uint(2); ;; 2ビットで最大4種類のDEXをサポート
             }
-            slice dex_pool_address = slice_dex~load_msg_addr();
-            slice dex_vault_address = slice_dex~load_msg_addr();
+            
+            ;; DEXタイプに応じて適切なアドレスを取得
+            slice dex_pool_address = null();
+            slice dex_vault_address = null();
+            
+            if (dex_type == DEX_TYPE_DEDUST()) {
+                ;; DeDustの場合はプールアドレスとVaultアドレスを使用
+                dex_pool_address = slice_dex~load_msg_addr(); ;; dex_pool_address
+                dex_vault_address = slice_dex~load_msg_addr(); ;; dex_vault_address
+            } else {
+                if (dex_type == DEX_TYPE_STONFI()) {
+                    ;; StonFiの場合はルーターアドレスとプロキシTONアドレスを取得
+                    slice router_address = slice_dex~load_msg_addr(); ;; dex_router_address (ルーターアドレス)
+                    slice proxy_ton_address = slice_dex~load_msg_addr(); ;; dex_proxy_ton_address (プロキシTONアドレス)
+                    
+                    ;; ルーターアドレスをdex_pool_addressとして設定
+                    dex_pool_address = router_address;
+                    ;; プロキシTONアドレスをdex_vault_addressとして設定
+                    dex_vault_address = proxy_ton_address;
+                } else {
+                    ;; 不明なDEXタイプの場合はデフォルトの動作
+                    dex_pool_address = slice_dex~load_msg_addr();
+                    dex_vault_address = slice_dex~load_msg_addr();
+                }
+            }
             int swap_amount = muldiv(jetton_amount, weight, INDEX_UNIT);
             swap_dex_jetton(
                 query_id,

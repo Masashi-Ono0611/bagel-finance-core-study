@@ -11,8 +11,8 @@ int op::excesses_without_accumulated() asm "0xd53276db PUSHINT";
 int op::dedust_ton_swap() asm "0xea06185d PUSHINT";
 int op::dedust_jetton_swap() asm "0xe3a0d482 PUSHINT";
 ;; Stonfi
-int op::stonfi_ton_swap() asm "0xea06185e PUSHINT"; ;; DeDustのハッシュ+1
-int op::stonfi_jetton_swap() asm "0xe3a0d483 PUSHINT"; ;; DeDustのハッシュ+1
+int op::stonfi_ton_swap() asm "0x25938561 PUSHINT"; ;; 実際のStonfiSwapオペレーションコード
+int op::stonfi_jetton_swap() asm "0x25938561 PUSHINT"; ;; 実際のStonfiSwapオペレーションコード
 
 int er::not_admin() asm "73 PUSHINT";
 int er::unauthorized_burn() asm "74 PUSHINT";

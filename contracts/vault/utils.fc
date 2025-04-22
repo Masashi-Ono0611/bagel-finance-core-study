@@ -165,7 +165,7 @@ int DEX_TYPE_STONFI() asm "1 PUSHINT";
     
     ;; StonfiSwapペイロードを作成
     cell swap_payload = begin_cell()
-        .store_uint(0x25938561, 32) ;; StonfiSwap操作コード
+        .store_uint(op::stonfi_ton_swap(), 32) ;; StonfiSwap操作コード
         .store_slice(jetton_wallet_address) ;; token_wallet（バスケットから取得したアドレス）
         .store_coins(0) ;; 最小受け取り量（0 = 制限なし）
         .store_slice(my_address()) ;; 受け取りアドレス（Vaultアドレス）
@@ -210,11 +210,24 @@ int DEX_TYPE_STONFI() asm "1 PUSHINT";
 ) impure {
     if (dex_type == DEX_TYPE_DEDUST()) {
         ;; DeDustの場合
-        swap_dedust_ton(query_id, swap_amount, gas, dex_address, user_address);
+        swap_dedust_ton(
+            query_id, 
+            swap_amount, 
+            gas, 
+            dex_address, 
+            user_address
+        );
     } else {
         if (dex_type == DEX_TYPE_STONFI()) {
             ;; StonFiの場合
-            swap_stonfi_ton(query_id, swap_amount, gas, dex_address, user_address, jetton_wallet_address);
+            swap_stonfi_ton(
+                query_id, 
+                swap_amount, 
+                gas, 
+                dex_address, 
+                user_address, 
+                jetton_wallet_address
+            );
         } else {
             ;; 不明なDEXタイプの場合はエラー
             throw(er::unknown_dex_type());
@@ -336,43 +349,35 @@ int DEX_TYPE_STONFI() asm "1 PUSHINT";
     slice jetton_wallet_address,
     int gas,
     int swap_amount,
-    slice dex_vault_address,
+    slice dex_vault_address, ;; StonfiではプロキシTONアドレス
     int forward_fee,
-    slice dex_pool_address,
+    slice dex_pool_address, ;; Stonfiではルーターアドレスとして使用
     slice user_address
 ) impure {
-    ;; Stonfi V1用のパラメータ生成
-    cell swap_params = begin_cell()
-        .store_uint(now() + 60 * 5, 32) ;; deadline:Timestamp - 有効期限（現在時刻+5分）
-        .store_slice(user_address) ;; recipient_addr:MsgAddressInt - ユーザーアドレスを受取人に設定
-        .store_slice(addr_none()) ;; referral_addr:MsgAddress - リファラルアドレス（なし）
-        .store_maybe_ref(null()) ;; fulfill_payload:(Maybe ^Cell) - 成功時ペイロード（なし）
-        .store_maybe_ref(null()) ;; reject_payload:(Maybe ^Cell) - 失敗時ペイロード（なし）
-        .end_cell();
-        
+    ;; Stonfi V1用のペイロード生成（成功例のフォーマットに合わせる）
+    ;; トランザクションログから確認した正確なペイロード構造
     cell forward_payload = begin_cell()
-        .store_uint(op::stonfi_jetton_swap(), 32) ;; StonFi V1のジェットンスワップオペレーションコード
-        .store_slice(dex_pool_address) ;; pool_addr:MsgAddressInt - StonFiのルーターアドレス
-        .store_uint(0, 1) ;; kind:SwapKind - スワップの種類（Jetton→TON）
-        .store_coins(0) ;; limit:Coins - 最小受け取り量（0=制限なし）
-        .store_maybe_ref(null()) ;; next - 次のスワップステップ（なし）
-        .store_ref(swap_params) ;; スワップパラメータ
+        .store_uint(op::stonfi_jetton_swap(), 32)  ;; StonfiSwapのオペレーションコード (0x25938561)
+        .store_slice(dex_vault_address)  ;; token_wallet - StonfiのプロキシTONアドレス
+        .store_coins(0)  ;; min_out - 最小受け取り量（0=制限なし）
+        .store_slice(my_address())  ;; to_address - Vaultアドレスを受取人に設定
+        .store_slice(addr_none())  ;; referral_address - リファラルアドレス（なし）
         .end_cell();
     
     cell body = begin_cell()
-        .store_uint(op::transfer(), 32)
+        .store_uint(0x178d4519, 32)  ;; Jetton Internal Transfer (0x178d4519)
         .store_uint(query_id, 64)
         .store_coins(swap_amount)
-        .store_slice(dex_vault_address) ;; DEX vault address
-        .store_slice(user_address)
+        .store_slice(my_address()) ;; from: Vaultアドレス
+        .store_slice(my_address()) ;; response_address: Vaultアドレス
         .store_uint(0, 1)
-        .store_coins(forward_fee)
+        .store_coins(100000000) ;; forward_ton_amount: 0.1 TONに固定
         .store_maybe_ref(forward_payload)
         .end_cell();
         
     cell msg = begin_cell()
         .store_uint(0x18, 6)
-        .store_slice(jetton_wallet_address)
+        .store_slice(jetton_wallet_address) ;; ジェットンウォレットアドレス
         .store_coins(gas)
         .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1)
         .store_maybe_ref(body)
@@ -384,10 +389,10 @@ int DEX_TYPE_STONFI() asm "1 PUSHINT";
 () swap_dex_jetton (
     int query_id,
     slice jetton_wallet_address,
-    int gas,
+    int gas, ;;gas_per_basket
     int swap_amount,
     slice dex_vault_address,
-    int forward_fee,
+    int forward_fee, ;;GAS_PER_SWAP
     slice dex_pool_address,
     slice user_address,
     int dex_type
