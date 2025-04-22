@@ -17,6 +17,15 @@ int gas_burn_notification(int num_baskets) inline {
 ;; 超過ガス返還処理用の一定額を計算
 int gas_excesses() asm "10000000 PUSHINT";
 
+;; Excessメッセージ処理のガス（0.01 TON）
+int gas_excess_processing() asm "10000000 PUSHINT";
+
+;; 辞書更新のガス（0.005 TON）
+int gas_dict_update() asm "5000000 PUSHINT";
+
+;; ミント処理のガス（0.02 TON）
+int gas_mint_processing() asm "20000000 PUSHINT";
+
 ;; 超過ガスを累積する
 () accumulate_excess_gas(int excess_amount) impure {
     storage::accumulated_gas += excess_amount;
@@ -29,9 +38,19 @@ int gas_excesses() asm "10000000 PUSHINT";
     if (send_amount < min_excesses()) {
         return ();
     }
-    
+    ;; コントラクト残高を確認
+    var [balance, _] = get_balance();
+    if (balance < send_amount + gas_excesses()) {
+        ;; 残高不足の場合は送信可能な金額を計算
+        send_amount = max(0, balance - gas_excesses() - min_excesses());
+        if (send_amount <= 0) {
+            return (); ;; 送信可能な金額がない場合は処理終了
+        }
+    }
+
     ;; 送信前に累積ガスをリセット
     storage::accumulated_gas = 0;
+    save_storage(); ;; ここで変更を保存!!!!!! DeDust完成版としていたFuncでもこれが抜けていた
     
     ;; メッセージ作成と送信
     cell msg = begin_cell()

@@ -323,10 +323,7 @@ const int INDEX_UNIT = 1000000000;
     }
 
     if (op == op::excesses()) {
-        ;; 外部からのexcesses呼び出し時のガス
-        int excess_gas = msg_value;
-        
-        ;; クエリIDに対応するユーザー情報を取得
+        ;; クエリーに対応するユーザー情報を取得
         (slice user_data, int found) = storage::dict_stonfi_queries.udict_get?(64, query_id);
         
         if (found) {
@@ -357,6 +354,9 @@ const int INDEX_UNIT = 1000000000;
             
             ;; すべてのExcessメッセージを受信したか確認
             if (received_count >= expected_count) {
+                ;; 最終バスケットの場合、最終Excess処理のガスを差し引く
+                int excess_gas = msg_value - (gas_excess_processing() + gas_dict_update() + gas_mint_processing());
+                
                 ;; ミント処理を実行
                 mint_index(
                     query_id,
@@ -381,6 +381,9 @@ const int INDEX_UNIT = 1000000000;
                 ;; 累積したガスを送信
                 send_accumulated_gas(query_id, user_address);
             } else {
+                ;; 中間バスケットの場合、中間Excess処理のガスを差し引く
+                int excess_gas = msg_value - (gas_excess_processing() + gas_dict_update());
+                
                 ;; すべてのExcessメッセージを受信していない場合は、ガスを累積
                 if (excess_gas > 0) {
                     accumulate_excess_gas(excess_gas);
@@ -391,6 +394,9 @@ const int INDEX_UNIT = 1000000000;
             ;; ==========================================
             ;; DeDustの場合の処理
             ;; ==========================================
+            
+            ;; DeDustの場合のガス計算
+            int excess_gas = msg_value - gas_excesses();
             
             ;; 単にガスを累積するだけ
             if (excess_gas > 0) {
