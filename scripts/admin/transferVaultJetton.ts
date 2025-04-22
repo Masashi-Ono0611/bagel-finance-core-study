@@ -1,7 +1,7 @@
 import { Address, beginCell } from '@ton/core';
-import { Vault } from '../wrappers/Vault';
+import { Vault } from '../../wrappers/Vault';
 import { NetworkProvider } from '@ton/blueprint';
-import { Op } from '../utils/Constants';
+import { Op } from '../../utils/Constants';
 
 // Default response address (Bagel Factory address on mainnet)
 // This address will receive transfer notifications and can be overridden if needed
