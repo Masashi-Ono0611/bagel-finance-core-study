@@ -181,17 +181,31 @@ export class Vault implements Contract {
         });
     }
 
-    static depositMessage(eachAmount: bigint[]) {
+    static depositMessage(eachAmount: bigint[], requestedMintAmount?: bigint) {
         const builder = beginCell().storeUint(Op.deposit, 32).storeUint(0, 64);
+        
+        // 各バスケットのスワップ量を追加
         for (const amount of eachAmount) {
             builder.storeCoins(amount);
         }
+        
+        // Mint量が指定されている場合は追加
+        if (requestedMintAmount !== undefined) {
+            builder.storeCoins(requestedMintAmount);
+        }
+        
         return builder.endCell();
     }
-    async sendDeposit(provider: ContractProvider, via: Sender, eachAmount: bigint[], value: bigint = toNano('0.05')) {
+    async sendDeposit(
+        provider: ContractProvider, 
+        via: Sender, 
+        eachAmount: bigint[], 
+        value: bigint = toNano('0.05'),
+        requestedMintAmount?: bigint
+    ) {
         await provider.internal(via, {
             sendMode: SendMode.PAY_GAS_SEPARATELY,
-            body: Vault.depositMessage(eachAmount),
+            body: Vault.depositMessage(eachAmount, requestedMintAmount),
             value,
         });
     }

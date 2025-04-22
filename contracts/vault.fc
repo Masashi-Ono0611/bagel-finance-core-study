@@ -53,7 +53,10 @@ const int INDEX_UNIT = 1000000000;
             dict_swap~udict_set_builder(8, i, begin_cell().store_coins(swap_amount));
             i += 1;
         }
-        throw_unless(er::invalid_deposit_body(), in_msg_body.slice_empty?()); ;; throw if there is extra TON amount
+        
+        ;; StonFiの場合はMint量を読み込むため、ここではメッセージが空かどうかをチェックしない
+        ;; Mint量を読み込む前にメッセージの内容を保存
+        slice saved_msg_body = in_msg_body;
         ;; swap and send to vault each baskets
         int i = 0;
         while (i < storage::num_baskets) {
@@ -138,9 +141,12 @@ const int INDEX_UNIT = 1000000000;
         if (stonfi_basket_count > 0) {
             ;; メッセージにMint量が指定されているか確認
             int requested_mint_amount = 0;
-            if (~ in_msg_body.slice_empty?()) {
+            if (~ saved_msg_body.slice_empty?()) {
                 ;; メッセージからMint量を読み込む
-                requested_mint_amount = in_msg_body~load_coins();
+                requested_mint_amount = saved_msg_body~load_coins();
+                
+                ;; 残りのメッセージが空かどうかを確認
+                throw_unless(er::invalid_deposit_body(), saved_msg_body.slice_empty?()); ;; throw if there is extra data
             } else {
                 ;; デフォルトのMint量を設定
                 requested_mint_amount = INDEX_UNIT;

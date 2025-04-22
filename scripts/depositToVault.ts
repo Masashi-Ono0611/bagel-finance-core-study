@@ -152,9 +152,47 @@ export async function run(provider: NetworkProvider) {
             return;
         }
         
+        // Mint量の設定
+        // デフォルトのMint量を1.45 INDEXに設定
+        const DEFAULT_MINT_AMOUNT = toNano('1.45'); // 1.45 INDEX = 1,450,000,000 nanoINDEX
+        let requestedMintAmount: bigint | undefined = DEFAULT_MINT_AMOUNT; // デフォルト値を初期化
+
+        // StonFiタイプの場合のみMint量の設定を表示
+        if (primaryDexType === DexType.STONFI) {
+            console.log('\nStonFiタイプのVaultではMint量を指定できます');
+            console.log(`デフォルトのMint量: ${DEFAULT_MINT_AMOUNT} nanoINDEX (${Number(DEFAULT_MINT_AMOUNT) / 1e9} INDEX)`);
+            const useMintAmount = await ui.choose('Mint量を指定しますか？', ['はい', 'いいえ（デフォルト値を使用）'], (v) => v);
+            
+            if (useMintAmount === 'はい') {
+                // Mint量の入力方法を選択
+                const mintAmountOption = await ui.choose(
+                    'Mint量の指定方法を選択してください：', 
+                    ['TON単位で指定', 'INDEX単位で指定（1 INDEX = 1,000,000,000 nanoINDEX）'], 
+                    (v) => v
+                );
+                
+                if (mintAmountOption === 'TON単位で指定') {
+                    // TON単位でのMint量を入力
+                    const mintAmountTON = await ui.input('Mint量をTON単位で入力してください：');
+                    requestedMintAmount = toNano(mintAmountTON);
+                } else {
+                    // INDEX単位でのMint量を入力
+                    const mintAmountINDEX = await ui.input('Mint量をINDEX単位で入力してください：');
+                    requestedMintAmount = toNano(mintAmountINDEX); // INDEXもTONと同じ単位系を使用
+                }
+                
+                console.log(`指定されたMint量: ${requestedMintAmount} nanoINDEX (${Number(requestedMintAmount) / 1e9} INDEX)`);
+            } else {
+                console.log(`デフォルトのMint量が使用されます: ${DEFAULT_MINT_AMOUNT} nanoINDEX (${Number(DEFAULT_MINT_AMOUNT) / 1e9} INDEX)`);
+            }
+        } else {
+            // DeDustタイプの場合はMint量を指定しない
+            requestedMintAmount = undefined;
+        }
+
         // デポジットの実行
         console.log('Vaultへのデポジットを実行中...');
-        await vault.sendDeposit(provider.sender(), eachAmount, totalValue);
+        await vault.sendDeposit(provider.sender(), eachAmount, totalValue, requestedMintAmount);
         
         // 完了メッセージの表示
         console.log('デポジット完了！');
