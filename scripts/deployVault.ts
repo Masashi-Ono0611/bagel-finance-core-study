@@ -15,16 +15,17 @@ import {
 
 // バスケットテンプレート定義
 interface BasketTemplate {
+    // DEX共通フィールド
     weight: string;
     jettonMasterAddress: string;
-    // StonFi用に予め設定するJettonウォレットアドレス
     jettonWalletAddress?: string;    // StonFiの場合はデプロイ時に設定、DeDustの場合はinitVault時に設定
-    // DEX共通フィールド
-    dexPoolAddress?: string;         // DEXプールアドレス（DeDustの場合はトークンペア別のプール、StonFiの場合はルーターアドレス）
-    dexJettonVaultAddress?: string;   // DEXのJettonVaultアドレス（DeDustの場合は実際のVault、StonFiの場合はダミー）
+    // DeDust用フィールド
+    dexPoolAddress?: string;         // DeDustでのトークンペア別のプールアドレス(StonFiの場合は互換性のためにdexRouterAddressと同じ値をダミーで設定）
+    dexJettonVaultAddress?: string;   // DeDustでのトークンペア別のJettonVaultアドレス（StonFiの場合は互換性のためにdexProxyTonAddressと同じ値をダミーで設定）
     // StonFi V1用追加フィールド
     dexRouterAddress?: string;       // StonFi V1のルーターアドレス
     dexProxyTonAddress?: string;     // StonFi V1のプロキシTONアドレス
+    // DEX共通フィールド
     dexType?: number;                // DEXタイプ（0=DeDust, 1=Stonfi）
 }
 

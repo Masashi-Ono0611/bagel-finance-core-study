@@ -33,14 +33,21 @@ Vault Storage
 
 各バスケットは以下の情報を持ちます：
 
-```
-Basket
-├── weight: Int (重み、9桁の小数点を使用)
-├── jetton_wallet_address: Address (Jettonウォレットアドレス)
-├── jetton_master_address: Address (JettonマスターアドレスまたはMinter)
-├── dex_pool_address: Address (DEXプールアドレス, DeDustはトークンペア別の任意プールアドレスを使用、Stonfiはルーターアドレスを設定)
-├── dex_jetton_vault_address: Address (DEXのJettonVaultアドレス)
-└── dex_type: Int (DEXタイプ、0=DeDust, 1=Stonfi)
+```typescript
+export type Basket = {
+    // DEX共通フィールド
+    weight: bigint;
+    jettonMasterAddress: Address;
+    jettonWalletAddress: Address;    // StonFiの場合はデプロイ時に設定、DeDustの場合はinitVault時に設定
+    // DeDust用フィールド
+    dexPoolAddress: Address;         // DeDustでのトークンペア別のプールアドレス(StonFiの場合は互換性のためにdexRouterAddressと同じ値をダミーで設定）
+    dexJettonVaultAddress: Address;   // DeDustでのトークンペア別のJettonVaultアドレス（StonFiの場合は互換性のためにdexProxyTonAddressと同じ値をダミーで設定）
+    // StonFi V1用追加フィールド
+    dexRouterAddress?: Address;      // StonFi V1のルーターアドレス
+    dexProxyTonAddress?: Address;    // StonFi V1のプロキシTONアドレス
+    // DEX共通フィールド
+    dexType?: number;                // DEXタイプ（0=DeDust, 1=Stonfi）
+};
 ```
 
 ### DEXタイプの定義
@@ -89,12 +96,15 @@ Vaultコントラクトは以下のメッセージを受け付けます：
 DEXタイプによって、内部的なメッセージの処理が異なります：
 
 1. **DeDust**
-   - スワップメッセージ: `op::swap_ton()`
+   - TONスワップメッセージ: `op::dedust_ton_swap()`
+   - Jettonスワップメッセージ: `op::dedust_jetton_swap()`
    - プール操作: DeDust独自のプールインターフェース
 
 2. **Stonfi**
-   - スワップメッセージ: `op::swap()`
+   - TONスワップメッセージ: `op::stonfi_ton_swap()`
+   - Jettonスワップメッセージ: `op::stonfi_jetton_swap()`
    - プール操作: Stonfi独自のプールインターフェース
+   - 特徴: プロキシTONアドレスを使用したTONスワップをサポート
 
 アプリ側からは、これらの違いを意識する必要はありません。Vaultコントラクトが適切なDEXに対応するメッセージを送信します。
 
@@ -113,9 +123,11 @@ DEX統合に関連する変数名は、以下の命名規則に従っていま�
    - `dexPoolAddress`: DEXのプールアドレス
    - `dexJettonVaultAddress`: DEXのJettonVaultアドレス
 
-3. **旧変数名からの変更点**
+3. **変数名の変更点**
    - 旧: `dedustPoolAddress` → 新: `dexPoolAddress`
    - 旧: `dedustJettonVaultAddress` → 新: `dexJettonVaultAddress`
+   - 新規: `dexRouterAddress` (StonFi V1用)
+   - 新規: `dexProxyTonAddress` (StonFi V1用)
 
 ### インターフェース定義
 
@@ -123,12 +135,18 @@ DEX統合に関連する変数名は、以下の命名規則に従っていま�
 
 ```typescript
 interface BasketTemplate {
+    // DEX共通フィールド
     weight: string;
     jettonMasterAddress: string;
-    dedustPoolAddress?: string;      // DeDust用
-    dedustJettonVaultAddress?: string; // DeDust用
-    stonfiPoolAddress?: string;      // Stonfi用
-    dexType?: number;                // DEXタイプ
+    jettonWalletAddress?: string;    // StonFiの場合はデプロイ時に設定、DeDustの場合はinitVault時に設定
+    // DeDust用フィールド
+    dexPoolAddress?: string;         // DeDustでのトークンペア別のプールアドレス(StonFiの場合は互換性のためにdexRouterAddressと同じ値をダミーで設定）
+    dexJettonVaultAddress?: string;   // DeDustでのトークンペア別のJettonVaultアドレス（StonFiの場合は互換性のためにdexProxyTonAddressと同じ値をダミーで設定）
+    // StonFi V1用追加フィールド
+    dexRouterAddress?: string;       // StonFi V1のルーターアドレス
+    dexProxyTonAddress?: string;     // StonFi V1のプロキシTONアドレス
+    // DEX共通フィールド
+    dexType?: number;                // DEXタイプ（0=DeDust, 1=Stonfi）
 }
 ```
 
@@ -199,22 +217,48 @@ private static readonly ADDRESS_HEX_MAP: Record<string, string> = {
    }
    ```
 
-4. **deployVault.tsの修正**
-   - DEXタイプに応じたルーターアドレスの選択ロジックを追加
+4. **deployVault.tsの実装**
+   - DEXタイプに応じたルーターアドレスの選択ロジック
 
    ```typescript
-   else if (primaryDexType === DexType.NEW_DEX) {
-       // 新しいDEXの場合
-       if (network === 'testnet') {
-           dexTonVaultAddress = AddressHelper.getAddressSafe(NEW_DEX_ROUTER_TESTNET);
-       } else {
-           dexTonVaultAddress = Address.parse(NEW_DEX_ROUTER_MAINNET);
-       }
+   // DEXタイプの選択
+   const dexTypeChoice = await ui.choose(
+       `Select DEX type for Basket ${index + 1}:`,
+       ['DeDust', 'Stonfi'],
+       (v: string) => v
+   );
+   const dexType = dexTypeChoice === 'DeDust' ? DexType.DEDUST : DexType.STONFI;
+   
+   // DEXタイプに応じたプロンプトメッセージを変更
+   const dexName = dexType === DexType.DEDUST ? 'DeDust' : 'Stonfi';
+   
+   // StonFi V1の場合は追加フィールドも設定
+   if (dexType === DexType.STONFI) {
+       const dexRouterAddress = Address.parse(await ui.input(`Enter StonFi Router Address for Basket ${index + 1}: `));
+       const dexProxyTonAddress = Address.parse(await ui.input(`Enter StonFi Proxy TON Address for Basket ${index + 1}: `));
+       
+       // 返却値にStonFi用フィールドを追加
    }
    ```
 
-5. **Vault.tsの修正**
-   - DEXタイプに応じたメッセージ処理ロジックを追加
+5. **Vault.tsの実装**
+   - DEXタイプに応じたメッセージ処理ロジック
+   - Basketの定義にStonFi V1用のフィールドを追加
+
+   ```typescript
+   export type Basket = {
+       weight: bigint;
+       jettonWalletAddress: Address;
+       // DEX共通フィールド
+       dexPoolAddress: Address;         // DEXプールアドレス
+       dexJettonVaultAddress: Address;   // DEXのJettonVaultアドレス
+       // StonFi V1用追加フィールド
+       dexRouterAddress?: Address;      // StonFi V1のルーターアドレス
+       dexProxyTonAddress?: Address;    // StonFi V1のプロキシTONアドレス
+       jettonMasterAddress: Address;
+       dexType?: number;                // DEXタイプ（0=DeDust, 1=Stonfi）
+   };
+   ```
 
 ## テスト方法
 
@@ -225,7 +269,7 @@ private static readonly ADDRESS_HEX_MAP: Record<string, string> = {
    npx blueprint run
    # deployVaultを選択
    # テストネットを選択
-   # DEXタイプを選択（DeDustまたはStonfi）
+   # テンプレートを選択（例: 'Stonfi testnet 2baskets V2'）
    ```
 
 2. **Vaultの初期化**
@@ -234,6 +278,20 @@ private static readonly ADDRESS_HEX_MAP: Record<string, string> = {
    # initVaultを選択
    # テストネットを選択
    # デプロイしたVaultアドレスを入力
+   ```
+
+3. **トークンのデポジット**
+   ```bash
+   npx blueprint run
+   # depositToVaultを選択
+   # デポジットする金額を入力
+   ```
+
+4. **トークンのバーン（リディーム）**
+   ```bash
+   npx blueprint run
+   # burnFromVaultを選択
+   # バーンする金額を入力
    ```
 
 ### メインネットでのテスト
@@ -263,3 +321,5 @@ private static readonly ADDRESS_HEX_MAP: Record<string, string> = {
 - [TON Documentation](https://ton.org/docs)
 - [DeDust Documentation](https://docs.dedust.io/)
 - [Stonfi Documentation](https://docs.stonfi.io/)
+- [TON Blockchain Explorer (Tonviewer)](https://tonviewer.com/)
+- [TON Testnet Explorer](https://testnet.tonviewer.com/)
