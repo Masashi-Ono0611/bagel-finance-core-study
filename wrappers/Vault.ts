@@ -14,13 +14,14 @@ import { Op } from '../utils/Constants';
 
 export type Basket = {
     weight: bigint;
-    jettonWalletAddress: Address;
+    jettonWalletAddress: Address;    // 動的に設定されるJettonウォレットアドレス（DeDustとStonFi共通）
     // DEX共通フィールド
     dexPoolAddress: Address;         // DEXプールアドレス（DeDustの場合はトークンペア別のプール、StonFiの場合はルーターアドレス）
     dexJettonVaultAddress: Address;   // DEXのJettonVaultアドレス（DeDustの場合は実際のVault、StonFiの場合はダミー）
     // StonFi V1用追加フィールド
     dexRouterAddress?: Address;      // StonFi V1のルーターアドレス
     dexProxyTonAddress?: Address;    // StonFi V1のプロキシTONアドレス
+    dexJettonWalletOnRouterAddress?: Address; // StonFi V1のルーター上のJettonウォレットアドレス
     jettonMasterAddress: Address;
     dexType?: number;                // DEXタイプ（0=DeDust, 1=Stonfi）
 };
@@ -66,6 +67,7 @@ function basketsToDict(baskets: Basket[]) {
                 .storeUint(dexType, 2)
                 .storeAddress(basket.dexRouterAddress) // StonFiルーターアドレス
                 .storeAddress(basket.dexProxyTonAddress) // StonFiプロキシTONアドレス
+                .storeAddress(basket.dexJettonWalletOnRouterAddress) // StonFiルーター上のJettonウォレットアドレス
                 .endCell();
         } else {
             // 不明なDEXタイプの場合はデフォルトでDeDustとして扱う

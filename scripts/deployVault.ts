@@ -18,13 +18,14 @@ interface BasketTemplate {
     // DEX共通フィールド
     weight: string;
     jettonMasterAddress: string;
-    jettonWalletAddress?: string;    // StonFiの場合はデプロイ時に設定、DeDustの場合はinitVault時に設定
+    jettonWalletAddress?: string;    // 互換性のために残しているが、実際には使用されない（DeDustとStonFiともにinitVault時に動的に設定される）
     // DeDust用フィールド
     dexPoolAddress?: string;         // DeDustでのトークンペア別のプールアドレス(StonFiの場合は互換性のためにdexRouterAddressと同じ値をダミーで設定）
     dexJettonVaultAddress?: string;   // DeDustでのトークンペア別のJettonVaultアドレス（StonFiの場合は互換性のためにdexProxyTonAddressと同じ値をダミーで設定）
     // StonFi V1用追加フィールド
     dexRouterAddress?: string;       // StonFi V1のルーターアドレス
     dexProxyTonAddress?: string;     // StonFi V1のプロキシTONアドレス
+    dexJettonWalletOnRouterAddress?: string; // StonFi V1のルーター上のJettonウォレットアドレス
     // DEX共通フィールド
     dexType?: number;                // DEXタイプ（0=DeDust, 1=Stonfi）
 }
@@ -342,20 +343,24 @@ async function getBaskets(ui: any, templateData?: VaultTemplate, isMainnet: bool
                 const dummyPoolAddress = Address.parse('EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c');
                 const dummyJettonVaultAddress = Address.parse('EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c');
                 
-                // StonFiの場合はテンプレートにjettonWalletAddressが設定されていれば使用する
-                const jettonWalletAddress = templateBasket.jettonWalletAddress ? 
+                // StonFiの場合もプレースホルダーアドレスを設定（initVault時に動的に設定される）
+                const jettonWalletAddress = placeholderWalletAddress;
+                
+                // 既存のjettonWalletAddressの値をdexJettonWalletOnRouterAddressとして設定
+                const dexJettonWalletOnRouterAddress = templateBasket.jettonWalletAddress ? 
                     Address.parse(templateBasket.jettonWalletAddress) : 
                     placeholderWalletAddress;
                     
                 if (templateBasket.jettonWalletAddress) {
-                    console.log(`Using Jetton Wallet Address for Basket ${i + 1}: ${templateBasket.jettonWalletAddress}`);
+                    console.log(`Using DEX Jetton Wallet On Router Address for Basket ${i + 1}: ${templateBasket.jettonWalletAddress}`);
                 }
                 
                 baskets.push({
                     weight,
-                    jettonWalletAddress, // テンプレートから取得したJettonウォレットアドレス
+                    jettonWalletAddress, // プレースホルダーアドレス（initVault時に動的に設定される）
                     dexRouterAddress, // StonFi V1用のルーターアドレス
                     dexProxyTonAddress, // StonFi V1用のプロキシアドレス
+                    dexJettonWalletOnRouterAddress, // StonFi V1用のルーター上のJettonウォレットアドレス
                     dexPoolAddress: dummyPoolAddress, // ダミーのプールアドレス
                     dexJettonVaultAddress: dummyJettonVaultAddress, // ダミーのJettonVaultアドレス
                     jettonMasterAddress,
