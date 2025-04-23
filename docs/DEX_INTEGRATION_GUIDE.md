@@ -38,13 +38,14 @@ export type Basket = {
     // DEX共通フィールド
     weight: bigint;
     jettonMasterAddress: Address;
-    jettonWalletAddress: Address;    // StonFiの場合はデプロイ時に設定、DeDustの場合はinitVault時に設定
+    jettonWalletAddress: Address;    // initVault時に設定
     // DeDust用フィールド
     dexPoolAddress: Address;         // DeDustでのトークンペア別のプールアドレス(StonFiの場合は互換性のためにdexRouterAddressと同じ値をダミーで設定）
     dexJettonVaultAddress: Address;   // DeDustでのトークンペア別のJettonVaultアドレス（StonFiの場合は互換性のためにdexProxyTonAddressと同じ値をダミーで設定）
     // StonFi V1用追加フィールド
+    dexJettonWalletOnRouterAddress?: Address;    // StonFi V1のJettonウォレットアドレス(*使用するルーターに紐づくJettonWalletAddressを使用する)
     dexRouterAddress?: Address;      // StonFi V1のルーターアドレス
-    dexProxyTonAddress?: Address;    // StonFi V1のプロキシTONアドレス
+    dexProxyTonAddress?: Address;    // StonFi V1のプロキシTONアドレス(*pTONのJettonMasterAddressではなく、使用するルーターに紐づくJettonAddressを使用する)
     // DEX共通フィールド
     dexType?: number;                // DEXタイプ（0=DeDust, 1=Stonfi）
 };
