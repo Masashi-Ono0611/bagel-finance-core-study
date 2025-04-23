@@ -359,7 +359,7 @@ int DEX_TYPE_STONFI() asm "1 PUSHINT";
     cell forward_payload = begin_cell()
         .store_uint(op::stonfi_jetton_swap(), 32)  ;; StonfiSwapのオペレーションコード (0x25938561)
         .store_slice(dex_vault_address)  ;; token_wallet - StonfiのプロキシTONアドレス
-        .store_coins(0)  ;; min_out - 最小受け取り量（0=制限なし）
+        .store_coins(1)  ;; min_out - 最小受け取り量（成功例に合わせて1に変更)
         .store_slice(my_address())  ;; to_address - Vaultアドレスを受取人に設定
         .store_slice(addr_none())  ;; referral_address - リファラルアドレス（なし）
         .end_cell();
@@ -370,15 +370,15 @@ int DEX_TYPE_STONFI() asm "1 PUSHINT";
         .store_coins(swap_amount)
         .store_slice(my_address()) ;; from: Vaultアドレス
         .store_slice(my_address()) ;; response_address: Vaultアドレス
-        .store_uint(0, 1)
-        .store_coins(100000000) ;; forward_ton_amount: 0.1 TONに固定
+        .store_coins(125000000) ;; forward_ton_amount
+        .store_uint(1, 1) ;; フォワードペイロードあり is_right: true
         .store_maybe_ref(forward_payload)
         .end_cell();
         
     cell msg = begin_cell()
         .store_uint(0x18, 6)
         .store_slice(jetton_wallet_address) ;; ジェットンウォレットアドレス
-        .store_coins(gas)
+        .store_coins(155000000) ;; gas 0.155 TON 
         .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1)
         .store_maybe_ref(body)
         .end_cell();

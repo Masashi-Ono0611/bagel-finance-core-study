@@ -30,7 +30,9 @@ export async function run(provider: NetworkProvider) {
     },
     testnet: {
       endpoint: "https://testnet.toncenter.com/api/v2/jsonRPC",
-      offerJettonAddress: 'kQBqtvcqnOUQrNN5JLb42AZtNiP7hsFvVNCOqiKUEoNYGkgv', // APR16
+      // offerJettonAddress: 'kQBqtvcqnOUQrNN5JLb42AZtNiP7hsFvVNCOqiKUEoNYGkgv', // APR16
+      offerJettonAddress: 'kQBig-ypUlf0m1GUzzuJOSM1JU4Gq1IgNbT9Spsw3EQ5ivO7', // Antony
+      // offerJettonAddress: 'kQBig-ypUlf0m1GUzzuJOSM1JU4Gq1IgNbT9Spsw3EQ5ivO7', // Antony
       minAskAmount: '1', // 最小受け取り量（TON）
       tokenName: 'Jetton',
       explorerUrl: 'https://testnet.tonviewer.com'
