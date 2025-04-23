@@ -80,6 +80,7 @@ const int INDEX_UNIT = 1000000000;
             }
             ;; DEXタイプに応じて適切なアドレスを取得
             slice dex_address = null();
+            slice stonfi_jetton_wallet_on_router = null(); ;; StonFi用のルーター上のJettonウォレットアドレスを格納する変数
             
             if (dex_type == DEX_TYPE_DEDUST()) {
                 ;; DeDustの場合はプールアドレスを使用
@@ -90,7 +91,7 @@ const int INDEX_UNIT = 1000000000;
                     ;; StonFiの場合はルーターアドレスとプロキシTONアドレスを取得
                     slice router_address = slice_dex~load_msg_addr(); ;; dex_router_address
                     slice proxy_ton_address = slice_dex~load_msg_addr(); ;; dex_proxy_ton_address
-                    slice dex_jetton_wallet_on_router_address = slice_dex~load_msg_addr(); ;; 追加: dex_jetton_wallet_on_router_address
+                    stonfi_jetton_wallet_on_router = slice_dex~load_msg_addr(); ;; 追加: ルーター上のJettonウォレットアドレス
                     
                     ;; プロキシTONアドレスをdex_addressとして設定
                     dex_address = proxy_ton_address;
@@ -103,21 +104,35 @@ const int INDEX_UNIT = 1000000000;
             ;; 全てのDEXタイプに対して同じ関数を呼び出す
             slice router_jetton_wallet = addr_none(); ;; デフォルトは空アドレス
             
-            ;; StonFiの場合はルーター上のJettonウォレットアドレスを使用
-            if (dex_type == DEX_TYPE_STONFI()) {
-                router_jetton_wallet = slice_dex~load_msg_addr(); ;; 読み込み済みのdex_jetton_wallet_on_router_addressを再度取得
-            }
+            ;; StonFiの場合は既に読み込んだルーター上のJettonウォレットアドレスを使用
+            ;; ここでは再度読み込みを行わない
+            ;; router_jetton_walletはそのままデフォルト値（addr_none()）を使用
+            ;; 実際の値はswap_dex_ton関数で渡される
             
-            swap_dex_ton(
-                query_id,
-                swap_amount,
-                gas_per_basket,
-                dex_address,
-                sender_address,
-                dex_type,
-                jetton_wallet_address,
-                router_jetton_wallet
-            );
+            ;; DEXタイプに応じて適切な引数を渡す
+            if (dex_type == DEX_TYPE_STONFI()) {
+                swap_dex_ton(
+                    query_id,
+                    swap_amount,
+                    gas_per_basket,
+                    dex_address,
+                    sender_address,
+                    dex_type,
+                    jetton_wallet_address,
+                    stonfi_jetton_wallet_on_router ;; StonFiの場合は読み込んだルーター上のJettonウォレットアドレスを渡す
+                );
+            } else {
+                swap_dex_ton(
+                    query_id,
+                    swap_amount,
+                    gas_per_basket,
+                    dex_address,
+                    sender_address,
+                    dex_type,
+                    jetton_wallet_address,
+                    router_jetton_wallet
+                );
+            }
             i += 1;
         }
         ;; Stonfiバスケット数をカウント
