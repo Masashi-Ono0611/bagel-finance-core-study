@@ -59,6 +59,9 @@ export async function run(provider: NetworkProvider) {
             if (basket.dexProxyTonAddress) {
                 console.log(`dexProxyTonAddress: ${basket.dexProxyTonAddress}`);
             }
+            if (basket.dexJettonWalletOnRouterAddress) {
+                console.log(`dexJettonWalletOnRouterAddress: ${basket.dexJettonWalletOnRouterAddress}`);
+            }
         }
     });
 
@@ -76,15 +79,8 @@ export async function run(provider: NetworkProvider) {
                 dexType: dexType,
             };
             
-            // DEXタイプに応じてjettonWalletAddressを設定
-            if (dexType === DexType.DEDUST) {
-                // DeDustの場合は動的に計算
-                result.jettonWalletAddress = await getJettonWalletAddr(tonClient, basket.jettonMasterAddress, vaultAddr);
-            } else if (dexType === DexType.STONFI) {
-                // StonFiの場合は既存の値を使用（なければ計算）
-                result.jettonWalletAddress = basket.jettonWalletAddress || 
-                    await getJettonWalletAddr(tonClient, basket.jettonMasterAddress, vaultAddr);
-            }
+            // DEXタイプに関わらず、jettonWalletAddressを動的に設定
+            result.jettonWalletAddress = await getJettonWalletAddr(tonClient, basket.jettonMasterAddress, vaultAddr);
             
             // StonFi V1の場合は追加フィールドも設定
             if (basket.dexType === DexType.STONFI) {
@@ -94,6 +90,9 @@ export async function run(provider: NetworkProvider) {
                 
                 (result as any).dexRouterAddress = basket.dexRouterAddress || STONFI_ROUTER_ADDRESS[safeNetwork];
                 (result as any).dexProxyTonAddress = basket.dexProxyTonAddress || STONFI_PROXY_TON_ADDRESS[safeNetwork];
+                
+                // dexJettonWalletOnRouterAddressを設定
+                (result as any).dexJettonWalletOnRouterAddress = basket.dexJettonWalletOnRouterAddress || null;
                 
                 // StonFiではプールアドレスとJettonVaultアドレスは使用しないのでnullを設定
                 result.dexPoolAddress = null;
@@ -122,6 +121,9 @@ export async function run(provider: NetworkProvider) {
             }
             if (basket.dexProxyTonAddress) {
                 console.log(`dexProxyTonAddress: ${basket.dexProxyTonAddress}`);
+            }
+            if (basket.dexJettonWalletOnRouterAddress) {
+                console.log(`dexJettonWalletOnRouterAddress: ${basket.dexJettonWalletOnRouterAddress}`);
             }
         }
 

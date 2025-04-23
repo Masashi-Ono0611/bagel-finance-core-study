@@ -1,6 +1,6 @@
 import { Address, Cell, toNano } from '@ton/core';
 import { compile, NetworkProvider } from '@ton/blueprint';
-import { Vault } from '../wrappers/Vault';
+import { Vault, Basket } from '../wrappers/Vault';
 import { jettonContentToCell, onchainContentToCell } from '../utils/JettonHelpers';
 import { AddressHelper } from '../utils/AddressHelper';
 import { 
@@ -112,7 +112,7 @@ const templates: Record<string, VaultTemplate> = {
             {
                 weight: '200000000',
                 jettonMasterAddress: 'kQDAjUl0H6Og8OuIZ3FpAzzrVCRW19fE2RCnp2hqVMoYGe_F',
-                jettonWalletAddress: 'kQDErqXy4mdVbyqe41mtOTPjKnZQIAUfmHnvbsW8-iJIEUnS', 
+                dexJettonWalletOnRouterAddress: 'kQDErqXy4mdVbyqe41mtOTPjKnZQIAUfmHnvbsW8-iJIEUnS', 
                 // 使用するルーターに紐づくJettonAddress
                 // https://testnet.tonviewer.com/kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n/jetton/kQDAjUl0H6Og8OuIZ3FpAzzrVCRW19fE2RCnp2hqVMoYGe_F
                 dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', 
@@ -123,7 +123,7 @@ const templates: Record<string, VaultTemplate> = {
             {
                 weight: '800000000',
                 jettonMasterAddress: 'kQBqtvcqnOUQrNN5JLb42AZtNiP7hsFvVNCOqiKUEoNYGkgv',
-                jettonWalletAddress: 'kQBKQIkwBe_d50vACml6Ymh9iCdoCz-0OdCrxDTKPRdDHz6C', 
+                dexJettonWalletOnRouterAddress: 'kQBKQIkwBe_d50vACml6Ymh9iCdoCz-0OdCrxDTKPRdDHz6C', 
                 // 使用するルーターに紐づくJettonAddress
                 // https://testnet.tonviewer.com/kQBKQIkwBe_d50vACml6Ymh9iCdoCz-0OdCrxDTKPRdDHz6C
                 dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', 
@@ -140,7 +140,7 @@ const templates: Record<string, VaultTemplate> = {
             {
                 weight: '800000000',
                 jettonMasterAddress: 'kQBqtvcqnOUQrNN5JLb42AZtNiP7hsFvVNCOqiKUEoNYGkgv',
-                jettonWalletAddress: 'kQBKQIkwBe_d50vACml6Ymh9iCdoCz-0OdCrxDTKPRdDHz6C', 
+                dexJettonWalletOnRouterAddress: 'kQBKQIkwBe_d50vACml6Ymh9iCdoCz-0OdCrxDTKPRdDHz6C', 
                 // 使用するルーターに紐づくJettonAddress
                 // https://testnet.tonviewer.com/kQBKQIkwBe_d50vACml6Ymh9iCdoCz-0OdCrxDTKPRdDHz6C
                 dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', 
@@ -151,7 +151,7 @@ const templates: Record<string, VaultTemplate> = {
             {
                 weight: '200000000',
                 jettonMasterAddress: 'kQBig-ypUlf0m1GUzzuJOSM1JU4Gq1IgNbT9Spsw3EQ5ivO7',
-                jettonWalletAddress: 'kQD7thS_LboHHlgFXJ2tQfnsXuOWctAtNVLkh1u2rijx7Ey-', 
+                dexJettonWalletOnRouterAddress: 'kQD7thS_LboHHlgFXJ2tQfnsXuOWctAtNVLkh1u2rijx7Ey-', 
                 // 使用するルーターに紐づくJettonAddress
                 // https://testnet.tonviewer.com/kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n/jetton/kQBig-ypUlf0m1GUzzuJOSM1JU4Gq1IgNbT9Spsw3EQ5ivO7
                 dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', 
@@ -168,7 +168,7 @@ const templates: Record<string, VaultTemplate> = {
             {
                 weight: '50000000',
                 jettonMasterAddress: 'kQBqtvcqnOUQrNN5JLb42AZtNiP7hsFvVNCOqiKUEoNYGkgv',
-                jettonWalletAddress: 'kQBKQIkwBe_d50vACml6Ymh9iCdoCz-0OdCrxDTKPRdDHz6C', 
+                dexJettonWalletOnRouterAddress: 'kQBKQIkwBe_d50vACml6Ymh9iCdoCz-0OdCrxDTKPRdDHz6C', 
                 // 使用するルーターに紐づくJettonAddress
                 // https://testnet.tonviewer.com/kQBKQIkwBe_d50vACml6Ymh9iCdoCz-0OdCrxDTKPRdDHz6C
                 dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', 
@@ -179,7 +179,7 @@ const templates: Record<string, VaultTemplate> = {
             {
                 weight: '950000000',
                 jettonMasterAddress: 'kQBig-ypUlf0m1GUzzuJOSM1JU4Gq1IgNbT9Spsw3EQ5ivO7',
-                jettonWalletAddress: 'kQD7thS_LboHHlgFXJ2tQfnsXuOWctAtNVLkh1u2rijx7Ey-', 
+                dexJettonWalletOnRouterAddress: 'kQD7thS_LboHHlgFXJ2tQfnsXuOWctAtNVLkh1u2rijx7Ey-', 
                 // 使用するルーターに紐づくJettonAddress
                 // https://testnet.tonviewer.com/kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n/jetton/kQBig-ypUlf0m1GUzzuJOSM1JU4Gq1IgNbT9Spsw3EQ5ivO7
                 dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', 
@@ -278,27 +278,19 @@ async function inputBasket(ui: any, index: number) {
     };
 }
 
-async function getBaskets(ui: any, templateData?: VaultTemplate, isMainnet: boolean = false) {
+async function getBaskets(ui: any, templateData?: VaultTemplate, isMainnet: boolean = false): Promise<Basket[]> {
     if (templateData) {
         const basketCount = templateData.baskets.length;
         console.log(`Using template with ${basketCount} baskets`);
         
-        const baskets = [];
+        const baskets: Basket[] = [];
         for (let i = 0; i < basketCount; i++) {
             const templateBasket = templateData.baskets[i];
             
             console.log(`\nEntering details for Basket ${i + 1}:`);
-            console.log(`Note: Weight uses 9 decimals. For example:`);
-            console.log(`- 600000000 = 0.60 (60%)`);
-            console.log(`- 400000000 = 0.40 (40%)`);
-            console.log(`IMPORTANT: Use the same scale as other Vaults (10^8 order, not 10^13)`);
-            
             // テンプレートから値を使用
             const weight = BigInt(templateBasket.weight);
-            console.log(`Enter weight for Basket ${i + 1}: ${templateBasket.weight}`);
-            
             const jettonMasterAddress = Address.parse(templateBasket.jettonMasterAddress);
-            console.log(`Enter Jetton Master Address for Basket ${i + 1}: ${templateBasket.jettonMasterAddress}`);
             
             // プレースホルダーウォレットアドレス
             const placeholderWalletAddress = Address.parse('EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c');
@@ -346,14 +338,10 @@ async function getBaskets(ui: any, templateData?: VaultTemplate, isMainnet: bool
                 // StonFiの場合もプレースホルダーアドレスを設定（initVault時に動的に設定される）
                 const jettonWalletAddress = placeholderWalletAddress;
                 
-                // 既存のjettonWalletAddressの値をdexJettonWalletOnRouterAddressとして設定
-                const dexJettonWalletOnRouterAddress = templateBasket.jettonWalletAddress ? 
-                    Address.parse(templateBasket.jettonWalletAddress) : 
+                // dexJettonWalletOnRouterAddressをテンプレートから直接取得
+                const dexJettonWalletOnRouterAddress = templateBasket.dexJettonWalletOnRouterAddress ? 
+                    Address.parse(templateBasket.dexJettonWalletOnRouterAddress) : 
                     placeholderWalletAddress;
-                    
-                if (templateBasket.jettonWalletAddress) {
-                    console.log(`Using DEX Jetton Wallet On Router Address for Basket ${i + 1}: ${templateBasket.jettonWalletAddress}`);
-                }
                 
                 baskets.push({
                     weight,
@@ -375,7 +363,7 @@ async function getBaskets(ui: any, templateData?: VaultTemplate, isMainnet: bool
     } else {
         // 通常の手動入力フロー
         const basketCount = parseInt(await ui.input('How many baskets do you want to configure? ')) || 2;
-        const baskets = [];
+        const baskets: Basket[] = [];
         
         for (let i = 0; i < basketCount; i++) {
             baskets.push(await inputBasket(ui, i));
@@ -489,6 +477,9 @@ export async function run(provider: NetworkProvider) {
             }
             if (basket.dexProxyTonAddress) {
                 console.log(`  StonFiプロキシTONアドレス: ${basket.dexProxyTonAddress.toString()}`);
+            }
+            if (basket.dexJettonWalletOnRouterAddress) {
+                console.log(`  StonFiルーター上のJettonウォレットアドレス: ${basket.dexJettonWalletOnRouterAddress.toString()}`);
             }
         } else if (basket.dexType === 0) { // DeDust
             if (basket.dexPoolAddress) {

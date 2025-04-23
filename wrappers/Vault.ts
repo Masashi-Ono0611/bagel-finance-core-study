@@ -502,6 +502,7 @@ export class Vault implements Contract {
                     let dexJettonVaultAddress;
                     let dexRouterAddress;
                     let dexProxyTonAddress;
+                    let dexJettonWalletOnRouterAddress;
                     
                     // デバッグ情報を追加
                     console.log(`バスケットデータ解析: DEXタイプ=${dexType} (${dexType === 0 ? 'DeDust' : dexType === 1 ? 'StonFi' : '不明'})`);                    
@@ -530,9 +531,19 @@ export class Vault implements Contract {
                                 if (dexSlice.remainingBits >= 267) { // アドレスに必要なビット数
                                     dexProxyTonAddress = dexSlice.loadAddress();
                                     console.log(`StonFiプロキシTONアドレス: ${dexProxyTonAddress}`);
+                                    
+                                    // dexJettonWalletOnRouterAddressを読み込む
+                                    if (dexSlice.remainingBits >= 267) { // アドレスに必要なビット数
+                                        dexJettonWalletOnRouterAddress = dexSlice.loadAddress();
+                                        console.log(`StonFiルーター上のJettonウォレットアドレス: ${dexJettonWalletOnRouterAddress}`);
+                                    } else {
+                                        console.log('StonFiルーター上のJettonウォレットアドレスが見つかりません');
+                                        dexJettonWalletOnRouterAddress = null;
+                                    }
                                 } else {
                                     console.log('StonFiプロキシTONアドレスが見つかりません');
                                     dexProxyTonAddress = null;
+                                    dexJettonWalletOnRouterAddress = null;
                                 }
                             } catch (e) {
                                 console.error('StonFiアドレスの読み込みエラー:', e);
@@ -575,11 +586,13 @@ export class Vault implements Contract {
                         basketData.dexJettonVaultAddress = dexJettonVaultAddress;
                         basketData.dexRouterAddress = null;
                         basketData.dexProxyTonAddress = null;
+                        basketData.dexJettonWalletOnRouterAddress = null;
                     } else if (dexType === 1) { // StonFi
                         // StonFiの場合、dexPoolAddressとdexJettonVaultAddressの位置に
                         // dexRouterAddressとdexProxyTonAddressが格納されている可能性がある
                         basketData.dexRouterAddress = dexRouterAddress;
                         basketData.dexProxyTonAddress = dexProxyTonAddress;
+                        basketData.dexJettonWalletOnRouterAddress = dexJettonWalletOnRouterAddress;
                         basketData.dexPoolAddress = null;
                         basketData.dexJettonVaultAddress = null;
                     } else {
@@ -588,6 +601,7 @@ export class Vault implements Contract {
                         basketData.dexJettonVaultAddress = dexJettonVaultAddress;
                         basketData.dexRouterAddress = null;
                         basketData.dexProxyTonAddress = null;
+                        basketData.dexJettonWalletOnRouterAddress = null;
                     }
                     
 
