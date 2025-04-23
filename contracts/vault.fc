@@ -65,96 +65,91 @@ const int INDEX_UNIT = 1000000000;
             int swap_amount = slice_swap~load_coins();
             (cell cell_baskets, int found_baskets) = storage::dict_baskets.udict_get_ref?(8, i);
             throw_unless(er::unexpected(), found_baskets);
-            slice  slice_baskets = cell_baskets.begin_parse();
-            slice_baskets~load_coins(); ;; weight
-            slice jetton_wallet_address = slice_baskets~load_msg_addr(); ;; jetton wallet address
+            slice slice_baskets = cell_baskets.begin_parse();
+            slice_baskets~load_coins(); ;; 重み
+            slice jetton_wallet_address = slice_baskets~load_msg_addr(); ;; Jettonウォレットアドレス
             cell dex_data = slice_baskets~load_ref();
             slice slice_dex = dex_data.begin_parse();
-            ;; DEXタイプを読み込む（既存のバスケットにはタイプがないため、デフォルトでDeDustとして処理）
+            
+            ;; ========== DEXタイプの処理 ==========
+            ;; デフォルトはDeDustタイプ
             int dex_type = DEX_TYPE_DEDUST();
+            
             ;; バスケットにタイプ情報があれば読み込む
             if (~ slice_dex.slice_empty?()) {
-                ;; 先頭バイトがタイプ情報であるか確認
-                ;; ここでは簡単のため、先頭バイトが存在すればタイプ情報とみなす
-                dex_type = slice_dex~load_uint(2); ;; 2ビットで最大4種類のDEXをサポート
+                dex_type = slice_dex~load_uint(2); ;; 2ビットでDEXタイプを表現
             }
-            ;; DEXタイプに応じて適切なアドレスを取得
+            
+            ;; DEX固有のアドレス変数
             slice dex_address = null();
-            slice stonfi_jetton_wallet_on_router = null(); ;; StonFi用のルーター上のJettonウォレットアドレスを格納する変数
+            slice stonfi_jetton_wallet_on_router = null(); ;; StonFi用のルーター上のJettonウォレットアドレス
             
             if (dex_type == DEX_TYPE_DEDUST()) {
-                ;; DeDustの場合はプールアドレスを使用
-                dex_address = slice_dex~load_msg_addr(); ;; dex_pool_address
-                slice_dex~load_msg_addr(); ;; dex_jetton_vault_addressをスキップ
+                ;; DeDustの場合
+                dex_address = slice_dex~load_msg_addr(); ;; プールアドレス
+                slice_dex~load_msg_addr(); ;; Jettonバウルトアドレスをスキップ
             } else {
                 if (dex_type == DEX_TYPE_STONFI()) {
-                    ;; StonFiの場合はルーターアドレスとプロキシTONアドレスを取得
-                    slice router_address = slice_dex~load_msg_addr(); ;; dex_router_address
-                    slice proxy_ton_address = slice_dex~load_msg_addr(); ;; dex_proxy_ton_address
-                    stonfi_jetton_wallet_on_router = slice_dex~load_msg_addr(); ;; 追加: ルーター上のJettonウォレットアドレス
+                    ;; StonFiの場合
+                    slice router_address = slice_dex~load_msg_addr(); ;; ルーターアドレス
+                    slice proxy_ton_address = slice_dex~load_msg_addr(); ;; プロキシTONアドレス
+                    stonfi_jetton_wallet_on_router = slice_dex~load_msg_addr(); ;; ルーター上のJettonウォレットアドレス
                     
-                    ;; プロキシTONアドレスをdex_addressとして設定
+                    ;; プロキシTONアドレスを使用
                     dex_address = proxy_ton_address;
                 } else {
-                    ;; 不明なDEXタイプの場合はデフォルトの動作
+                    ;; 不明なDEXタイプの場合
                     dex_address = slice_dex~load_msg_addr();
                 }
             }
             
-            ;; 全てのDEXタイプに対して同じ関数を呼び出す
-            slice router_jetton_wallet = addr_none(); ;; デフォルトは空アドレス
+            ;; ========== DEXスワップ処理 ==========
+            ;; DEXタイプに応じたスワップ処理を実行
             
-            ;; StonFiの場合は既に読み込んだルーター上のJettonウォレットアドレスを使用
-            ;; ここでは再度読み込みを行わない
-            ;; router_jetton_walletはそのままデフォルト値（addr_none()）を使用
-            ;; 実際の値はswap_dex_ton関数で渡される
+            ;; デフォルトのルーター上ウォレットアドレス（空アドレス）
+            slice router_jetton_wallet = addr_none();
             
-            ;; DEXタイプに応じて適切な引数を渡す
+            ;; StonFiの場合はルーター上のJettonウォレットアドレスを使用
             if (dex_type == DEX_TYPE_STONFI()) {
-                swap_dex_ton(
-                    query_id,
-                    swap_amount,
-                    gas_per_basket,
-                    dex_address,
-                    sender_address,
-                    dex_type,
-                    jetton_wallet_address,
-                    stonfi_jetton_wallet_on_router ;; StonFiの場合は読み込んだルーター上のJettonウォレットアドレスを渡す
-                );
-            } else {
-                swap_dex_ton(
-                    query_id,
-                    swap_amount,
-                    gas_per_basket,
-                    dex_address,
-                    sender_address,
-                    dex_type,
-                    jetton_wallet_address,
-                    router_jetton_wallet
-                );
+                router_jetton_wallet = stonfi_jetton_wallet_on_router;
             }
+            
+            ;; スワップ処理の実行
+            swap_dex_ton(
+                query_id,
+                swap_amount,
+                gas_per_basket,
+                dex_address,
+                sender_address,
+                dex_type,
+                jetton_wallet_address,
+                router_jetton_wallet
+            );
             i += 1;
         }
-        ;; Stonfiバスケット数をカウント
+        ;; ========== StonFiバスケットの処理 ==========
+        ;; StonFiバスケットの数をカウント
         int stonfi_basket_count = 0;
-        int i = 0;
+        i = 0;
+        
         while (i < storage::num_baskets) {
             (cell data_baskets, int found_baskets) = storage::dict_baskets.udict_get_ref?(8, i);
             throw_unless(er::invalid_vault_data(), found_baskets);
             
             slice slice_baskets = data_baskets.begin_parse();
-            slice_baskets~load_coins(); ;; weight
-            slice_baskets~load_msg_addr(); ;; jetton_wallet_address
+            slice_baskets~load_coins(); ;; 重み
+            slice_baskets~load_msg_addr(); ;; Jettonウォレットアドレス
             cell dex_data = slice_baskets~load_ref();
             slice slice_dex = dex_data.begin_parse();
             
-            ;; DEXタイプを読み込む
-            int dex_type = DEX_TYPE_DEDUST();
+            ;; DEXタイプの確認
+            int dex_type = DEX_TYPE_DEDUST(); ;; デフォルトはDeDust
+            
             if (~ slice_dex.slice_empty?()) {
-                dex_type = slice_dex~load_uint(2);
+                dex_type = slice_dex~load_uint(2); ;; DEXタイプを読み込む
             }
             
-            ;; Stonfiタイプのバスケットをカウント
+            ;; StonFiバスケットのカウント
             if (dex_type == DEX_TYPE_STONFI()) {
                 stonfi_basket_count += 1;
             }
@@ -162,30 +157,34 @@ const int INDEX_UNIT = 1000000000;
             i += 1;
         }
         
-        ;; Stonfiバスケットがある場合、ユーザー情報を登録
+        ;; StonFiバスケットがある場合の処理
         if (stonfi_basket_count > 0) {
-            ;; メッセージにMint量が指定されているか確認
+            ;; ユーザー指定のMint量を取得
             int requested_mint_amount = 0;
+            
             if (~ saved_msg_body.slice_empty?()) {
                 ;; メッセージからMint量を読み込む
                 requested_mint_amount = saved_msg_body~load_coins();
                 
-                ;; 残りのメッセージが空かどうかを確認
-                throw_unless(er::invalid_deposit_body(), saved_msg_body.slice_empty?()); ;; throw if there is extra data
+                ;; 余分なデータがないことを確認
+                throw_unless(er::invalid_deposit_body(), saved_msg_body.slice_empty?());
             } else {
-                ;; デフォルトのMint量を設定
+                ;; デフォルトのMint量を使用
                 requested_mint_amount = INDEX_UNIT;
             }
             
+            ;; StonFiクエリ情報を登録
             storage::dict_stonfi_queries~udict_set_builder(
                 64,
                 query_id,
                 begin_cell()
-                    .store_slice(sender_address)  ;; ユーザーアドレス
+                    .store_slice(sender_address)     ;; ユーザーアドレス
                     .store_uint(stonfi_basket_count, 8)  ;; 期待するExcessメッセージ数
-                    .store_uint(0, 8)  ;; 受信カウンター（初期値0）
-                    .store_coins(requested_mint_amount)  ;; ユーザー指定のMint量
+                    .store_uint(0, 8)               ;; 受信カウンター（初期値0）
+                    .store_coins(requested_mint_amount)  ;; 要求されたMint量
             );
+            
+            ;; ストレージを保存
             save_storage();
         }
         

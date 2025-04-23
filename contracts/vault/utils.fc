@@ -1,20 +1,30 @@
+;; ========== ガス定数 ==========
 ;; 6905(computational_gas_price) * 1000(cur_gas_price) = 6905000
 ;; ceil(6905000) = 10000000 ~= 0.01 TON
 int provide_address_gas_consumption() asm "10000000 PUSHINT";
 
+;; 最小超過額
 int min_excesses() asm "1000000 PUSHINT";
+
+;; デポジット処理のガス計算
 int gas_deposit(int num_baskets) inline {
     return num_baskets * 3200000 + 1400000;
 }
+
+;; 転送通知のガス
 int gas_transfer_notification() asm "10000000 PUSHINT";
+
+;; 転送通知完了のガス計算
 int gas_transfer_notification_complete(int num_baskets) inline {
     return num_baskets * 2000000 + 2500000;
 }
+
+;; バーン通知のガス計算
 int gas_burn_notification(int num_baskets) inline {
     return num_baskets * 2100000 + 4000000;
 }
 
-;; 超過ガス返還処理用の一定額を計算
+;; 超過ガス返還処理用の一定額
 int gas_excesses() asm "10000000 PUSHINT";
 
 ;; Excessメッセージ処理のガス（0.01 TON）
@@ -25,6 +35,10 @@ int gas_dict_update() asm "5000000 PUSHINT";
 
 ;; ミント処理のガス（0.02 TON）
 int gas_mint_processing() asm "20000000 PUSHINT";
+
+;; ========== DEX固有定数 ==========
+;; StonFiスワップ用のforward_ton_amount
+int STONFI_FORWARD_TON_AMOUNT() asm "125000000 PUSHINT";
 
 ;; 超過ガスを累積する
 () accumulate_excess_gas(int excess_amount) impure {
@@ -158,31 +172,28 @@ int DEX_TYPE_STONFI() asm "1 PUSHINT";
     int gas,
     slice dex_proxy_ton_address,
     slice user_address,
-    slice dex_jetton_wallet_on_router_address  ;; 変更: dexJettonWalletOnRouterAddressを使用
+    slice dex_jetton_wallet_on_router_address
 ) impure {
-    ;; バスケットから取得したdex_jetton_wallet_on_router_addressを直接使用
-    ;; デプロイ時にチェックされているので、ここでのチェックは不要
-    
-    ;; StonfiSwapペイロードを作成
+    ;; StonFiスワップ用のペイロード生成
     cell swap_payload = begin_cell()
-        .store_uint(op::stonfi_ton_swap(), 32) ;; StonfiSwap操作コード
-        .store_slice(dex_jetton_wallet_on_router_address) ;; token_wallet（バスケットから取得したルーター上のJettonウォレットアドレス）
-        .store_coins(0) ;; 最小受け取り量（0 = 制限なし）
-        .store_slice(my_address()) ;; 受け取りアドレス（Vaultアドレス）
+        .store_uint(op::stonfi_ton_swap(), 32) ;; StonFiスワップ操作コード
+        .store_slice(dex_jetton_wallet_on_router_address) ;; ルーター上のJettonウォレットアドレス
+        .store_coins(0) ;; 最小受け取り量
+        .store_slice(my_address()) ;; 受け取りアドレス
         .store_uint(0, 1) ;; リファラルなし
         .end_cell();
     
-    ;; JettonTransferメッセージを構築
+    ;; Jetton転送メッセージを構築
     cell body = begin_cell()
-        .store_uint(op::transfer(), 32) ;; JettonTransfer操作コード（0xf8a7ea5）
-        .store_uint(query_id, 64) ;; 元のクエリIDをそのまま使用
-        .store_coins(swap_amount) ;; 送金額（実際のSwap量）
-        .store_slice(dex_proxy_ton_address) ;; 送信先（プロキシTONアドレス）
-        .store_slice(my_address()) ;; 応答先（Vaultアドレス）
+        .store_uint(op::transfer(), 32) ;; Jetton転送操作コード
+        .store_uint(query_id, 64) ;; クエリID
+        .store_coins(swap_amount) ;; 送金額
+        .store_slice(dex_proxy_ton_address) ;; プロキシTONアドレス
+        .store_slice(my_address()) ;; 応答先アドレス
         .store_maybe_ref(null()) ;; カスタムペイロードなし
-        .store_coins(gas) ;; フォワードTON量（gasパラメータを使用）
+        .store_coins(gas) ;; フォワードTON量
         .store_uint(1, 1) ;; フォワードペイロードあり
-        .store_ref(swap_payload) ;; StonfiSwapペイロード
+        .store_ref(swap_payload) ;; スワップペイロード
         .end_cell();
     
     ;; StonFiの場合はプロキシTONアドレスに直接送信
@@ -350,39 +361,37 @@ int DEX_TYPE_STONFI() asm "1 PUSHINT";
     slice jetton_wallet_address,
     int gas,
     int swap_amount,
-    slice dex_vault_address, ;; StonfiではプロキシTONアドレス
+    slice dex_vault_address, ;; プロキシTONアドレス
     int forward_fee,
-    slice dex_pool_address, ;; Stonfiではルーターアドレスとして使用
+    slice dex_pool_address, ;; ルーターアドレス
     slice user_address
 ) impure {
-    ;; Stonfi V1用のペイロード生成（成功例のフォーマットに合わせる）
-    ;; トランザクションログから確認した正確なペイロード構造
+    ;; StonFiスワップ用のペイロード生成
     cell forward_payload = begin_cell()
-        .store_uint(op::stonfi_jetton_swap(), 32)  ;; StonfiSwapのオペレーションコード (0x25938561)
-        .store_slice(dex_vault_address)  ;; token_wallet - StonfiのプロキシTONアドレス
-        .store_coins(1)  ;; min_out - 最小受け取り量（成功例に合わせて1に変更)
-        .store_slice(user_address)  ;; to_address - user_addressを受取人に変更
-        .store_slice(addr_none())  ;; referral_address - リファラルアドレス（なし）
-        .store_uint(1, 1)  ;; convert_to_ton フラグを追加（TON形式で送信するため）
+        .store_uint(op::stonfi_jetton_swap(), 32)  ;; StonFiスワップ操作コード
+        .store_slice(dex_vault_address)  ;; プロキシTONアドレス
+        .store_coins(1)  ;; 最小受け取り量
+        .store_slice(user_address)  ;; 受取人アドレス
+        .store_slice(addr_none())  ;; リファラルアドレス（なし）
+        .store_uint(1, 1)  ;; TON形式で送信するフラグ
         .end_cell();
     
     cell body = begin_cell()
-        .store_uint(0x0f8a7ea5, 32)  ;; Jetton Transfer · 0x0f8a7ea5
+        .store_uint(op::jetton_transfer(), 32)  ;; Jetton転送操作コード
         .store_uint(query_id, 64)
         .store_coins(swap_amount)
-        .store_slice(dex_pool_address) ;; destination : Stonfiルーターアドレス
-        ;;.store_slice(my_address()) ;; response_destination Vaultアドレス
-        .store_slice(user_address) ;; response_destination Userアドレス
-        .store_maybe_ref(null()) ;; カスタムペイロードなし custom_payload: null
-        .store_coins(125000000) ;; forward_ton_amount
-        .store_uint(1, 1) ;; フォワードペイロードあり is_right: true
+        .store_slice(dex_pool_address) ;; ルーターアドレス
+        .store_slice(user_address) ;; ユーザーアドレスに直接送信
+        .store_maybe_ref(null()) ;; カスタムペイロードなし
+        .store_coins(STONFI_FORWARD_TON_AMOUNT()) ;; フォワードTON量
+        .store_uint(1, 1) ;; フォワードペイロードあり
         .store_maybe_ref(forward_payload)
         .end_cell();
         
     cell msg = begin_cell()
         .store_uint(0x18, 6)
         .store_slice(jetton_wallet_address) ;; ジェットンウォレットアドレス
-        .store_coins(gas) ;; gas
+        .store_coins(gas) ;; ガス量
         .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1)
         .store_maybe_ref(body)
         .end_cell();
