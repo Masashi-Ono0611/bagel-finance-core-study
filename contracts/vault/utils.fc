@@ -361,7 +361,7 @@ int DEX_TYPE_STONFI() asm "1 PUSHINT";
         .store_uint(op::stonfi_jetton_swap(), 32)  ;; StonfiSwapのオペレーションコード (0x25938561)
         .store_slice(dex_vault_address)  ;; token_wallet - StonfiのプロキシTONアドレス
         .store_coins(1)  ;; min_out - 最小受け取り量（成功例に合わせて1に変更)
-        .store_slice(my_address())  ;; to_address - Vaultアドレスを受取人に設定
+        .store_slice(user_address)  ;; to_address - user_addressを受取人に変更
         .store_slice(addr_none())  ;; referral_address - リファラルアドレス（なし）
         .end_cell();
     
