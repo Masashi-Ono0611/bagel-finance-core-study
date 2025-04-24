@@ -40,19 +40,40 @@ int gas_mint_processing() asm "20000000 PUSHINT";
 ;; StonFiスワップ用のforward_ton_amount
 int STONFI_FORWARD_TON_AMOUNT() asm "125000000 PUSHINT";
 
-;; 超過ガスを累積する
-() accumulate_excess_gas(int excess_amount) impure {
-    storage::accumulated_gas += excess_amount;
+;; クエリーIDごとの超過ガスを累積する
+() accumulate_query_excess_gas(int query_id, int excess_amount) impure {
+    ;; クエリーIDの現在の超過ガス量を取得
+    int current_excess = 0;
+    
+    ;; 既存の超過ガスがあれば取得
+    (slice cs, int found) = storage::dict_query_excess_gas.udict_get?(64, query_id);
+    if (found) {
+        current_excess = cs~load_coins();
+    }
+    
+    ;; 超過ガスを追加
+    current_excess += excess_amount;
+    
+    ;; 更新された超過ガス量を保存
+    builder value = begin_cell().store_coins(current_excess);
+    storage::dict_query_excess_gas~udict_set(64, query_id, value.end_cell().begin_parse());
+    
     save_storage(); ;; 状態変更後に必ず保存
 }
 
-;; 累積したガスを送信する
-() send_accumulated_gas(int query_id, slice user_address) impure {
-    ;; 累積ガスから処理コスト分を差し引く
-    int send_amount = storage::accumulated_gas - gas_excesses();
-    if (send_amount < min_excesses()) {
-        return ();
+;; クエリーIDの累積したガスを送信する
+() send_query_accumulated_gas(int query_id, slice user_address) impure {
+    ;; クエリーIDの超過ガス量を取得
+    (slice cs, int found) = storage::dict_query_excess_gas.udict_get?(64, query_id);
+    if (~ found) {
+        return (); ;; クエリーIDの超過ガスがない場合は処理終了
     }
+    
+    int send_amount = cs~load_coins();
+    if (send_amount < min_excesses()) {
+        return (); ;; 最小額に満たない場合は処理終了
+    }
+    
     ;; コントラクト残高を確認
     var [balance, _] = get_balance();
     if (balance < send_amount + gas_excesses()) {
@@ -62,10 +83,10 @@ int STONFI_FORWARD_TON_AMOUNT() asm "125000000 PUSHINT";
             return (); ;; 送信可能な金額がない場合は処理終了
         }
     }
-
-    ;; 送信前に累積ガスをリセット
-    storage::accumulated_gas = 0;
-    save_storage(); ;; ここで変更を保存!!!!!! DeDust完成版としていたFuncでもこれが抜けていた
+    
+    ;; 送信前にクエリーIDの超過ガスをリセット
+    storage::dict_query_excess_gas~udict_delete?(64, query_id);
+    save_storage(); ;; 状態変更後に必ず保存
     
     ;; メッセージ作成と送信
     cell msg = begin_cell()
@@ -78,6 +99,25 @@ int STONFI_FORWARD_TON_AMOUNT() asm "125000000 PUSHINT";
         .end_cell();
     
     send_raw_message(msg, 2);
+}
+
+;; 下位互換性のためのラッパー関数
+() accumulate_excess_gas(int excess_amount) impure {
+    ;; ダミークエリーIDを使用
+    ;; 実際には使用されないが、互換性のために維持
+    int dummy_query_id = 0;
+    accumulate_query_excess_gas(dummy_query_id, excess_amount);
+}
+
+;; 下位互換性のためのラッパー関数
+() send_accumulated_gas(int query_id, slice user_address) impure {
+    ;; ダミークエリーIDを使用
+    ;; 実際には使用されないが、互換性のために維持
+    int dummy_query_id = 0;
+    send_query_accumulated_gas(dummy_query_id, user_address);
+    
+    ;; 実際のクエリーIDの超過ガスも送信
+    send_query_accumulated_gas(query_id, user_address);
 }
 
 ;; 超過ガスを直接返還する（累積なし）

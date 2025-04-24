@@ -287,7 +287,7 @@ const int INDEX_UNIT = 1000000000;
                 ;;累積ガスを保存
                 int excess_gas = msg_value - gas_transfer_notification();
                 if (excess_gas > 0) {
-                    accumulate_excess_gas(excess_gas);
+                    accumulate_query_excess_gas(query_id, excess_gas);
                     ;; save_storage()は関数内で呼び出されるので不要
                 }
                 return ();
@@ -336,12 +336,12 @@ const int INDEX_UNIT = 1000000000;
 
         save_storage();
         ;;累積ガスを保存
-        int excess_gas = msg_value - gas_transfer_notification(); ;;;大野メモ 今後の修正点 ジェットン転送の想定ガス代(約0.01TON) * (バスケットの数-1) を追加で引きたいが、一旦スキップ
+        int excess_gas = msg_value - gas_transfer_notification(); ;;;大野メモ 今後の修正点 ジェットン転送の想定ガス代(約30.01TON) * (バスケットの数-1) を追加で引きたいが、一旦スキップ
         if (excess_gas > 0) {
-            accumulate_excess_gas(excess_gas);
+            accumulate_query_excess_gas(query_id, excess_gas);
         }
         ;; ミント処理完了後、累積したガスを送信
-        send_accumulated_gas(query_id, user_address);
+        send_query_accumulated_gas(query_id, user_address);
         return ();
     }
 
@@ -397,19 +397,19 @@ const int INDEX_UNIT = 1000000000;
                 
                 ;; ミント処理完了後、残りのガスを累積
                 if (excess_gas > 0) {
-                    accumulate_excess_gas(excess_gas);
+                    accumulate_query_excess_gas(query_id, excess_gas);
                     ;; save_storage()は関数内で呼び出されるので不要
                 }
                 
                 ;; 累積したガスを送信
-                send_accumulated_gas(query_id, user_address);
+                send_query_accumulated_gas(query_id, user_address);
             } else {
                 ;; 中間バスケットの場合、中間Excess処理のガスを差し引く
                 int excess_gas = msg_value - (gas_excess_processing() + gas_dict_update());
                 
-                ;; すべてのExcessメッセージを受信していない場合は、ガスを累積
+                ;; すべてのExcessメッセージを受信していない場合は、クエリーIDごとにガスを累積
                 if (excess_gas > 0) {
-                    accumulate_excess_gas(excess_gas);
+                    accumulate_query_excess_gas(query_id, excess_gas);
                     ;; save_storage()は関数内で呼び出されるので不要
                 }
             }
@@ -421,11 +421,14 @@ const int INDEX_UNIT = 1000000000;
             ;; DeDustの場合のガス計算
             int excess_gas = msg_value - gas_excesses();
             
-            ;; 単にガスを累積するだけ
+            ;; クエリーIDごとにガスを累積
             if (excess_gas > 0) {
-                accumulate_excess_gas(excess_gas);
+                accumulate_query_excess_gas(query_id, excess_gas);
                 ;; save_storage()は関数内で呼び出されるので不要
             }
+            
+            ;; 累積したガスを送信
+            send_query_accumulated_gas(query_id, sender_address);
         }
         
         return ();
