@@ -302,7 +302,7 @@ export class Vault implements Contract {
             Dictionary.Keys.BigUint(256),
             Dictionary.Values.Dictionary(Dictionary.Keys.Uint(8), Dictionary.Values.Cell()),
         ),
-        accumulatedGas: bigint = 0n
+        dict_query_excess_gas: Cell = beginCell().storeDict(Dictionary.empty()).endCell()
     ) {
         return beginCell()
             .storeUint(Op.change_vault_data, 32)
@@ -312,7 +312,7 @@ export class Vault implements Contract {
             .storeAddress(dexTonVaultAddress)
             .storeDict(basketsToDict(baskets))
             .storeDict(waitingsDict)
-            .storeCoins(accumulatedGas)
+            .storeRef(dict_query_excess_gas)
             .endCell();
     }
     async sendChangeVaultData(
@@ -322,12 +322,12 @@ export class Vault implements Contract {
         dexTonVaultAddress: Address,
         baskets: Basket[],
         waitingsDict?: Dictionary<bigint, Dictionary<number, Cell>>,
-        accumulatedGas: bigint = 0n,
+        dict_query_excess_gas?: Cell,
         value: bigint = toNano('0.05'),
     ) {
         await provider.internal(via, {
             sendMode: SendMode.PAY_GAS_SEPARATELY,
-            body: Vault.changeVaultDataMessage(stopped, dexTonVaultAddress, baskets, waitingsDict, accumulatedGas),
+            body: Vault.changeVaultDataMessage(stopped, dexTonVaultAddress, baskets, waitingsDict, dict_query_excess_gas),
             value,
         });
     }
@@ -439,14 +439,15 @@ export class Vault implements Contract {
                 waitingsCell = beginCell().storeDict(Dictionary.empty()).endCell();
             }
             
-            // accumulated_gasの読み込み - エラーハンドリング強化
-            let accumulatedGas = 0n;
+            // dict_query_excess_gasの読み込み - エラーハンドリング強化
+            let dict_query_excess_gas;
             try {
                 // スタックにまだデータが残っているか確認
-                accumulatedGas = res.stack.readBigNumber();
+                dict_query_excess_gas = res.stack.readCell();
             } catch (e) {
                 // スタックが空の場合はデフォルト値を使用
-                console.log('accumulated_gasの読み込みエラー。デフォルト値0を使用します。', e);
+                console.log('dict_query_excess_gasの読み込みエラー。空の辞書を使用します。', e);
+                dict_query_excess_gas = beginCell().storeDict(Dictionary.empty()).endCell();
             }
             
             // 各辞書のロード - エラーハンドリング強化
@@ -611,7 +612,7 @@ export class Vault implements Contract {
                 }
             }
             
-            return { stopped, numBaskets, dexTonVaultAddress, baskets, dict_waitings, accumulatedGas };
+            return { stopped, numBaskets, dexTonVaultAddress, baskets, dict_waitings, dict_query_excess_gas };
         } catch (error) {
             console.error('Error in getVaultData:', error);
             throw error;

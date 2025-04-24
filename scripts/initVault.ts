@@ -3,6 +3,7 @@ import { getTonClient } from '../utils/TonClient';
 import { getJettonWalletAddr } from '../utils/Common';
 import { DexType, STONFI_ROUTER_ADDRESS, STONFI_PROXY_TON_ADDRESS } from '../utils/Constants';
 import { Vault } from '../wrappers/Vault';
+import { beginCell, Dictionary } from '@ton/core';
 
 export async function run(provider: NetworkProvider) {
     const ui = provider.ui();
@@ -139,10 +140,10 @@ export async function run(provider: NetworkProvider) {
     // dict_waitingsは元のものを保持
     const waitingsDict = vaultData.dict_waitings;
     
-    // accumulated_gasも元の値を維持
-    const accumulatedGas = vaultData.accumulatedGas || 0n;
+    // dict_query_excess_gasも元の値を維持
+    const dict_query_excess_gas = vaultData.dict_query_excess_gas || beginCell().storeDict(Dictionary.empty()).endCell();
     
-    console.log('\nMaintaining accumulated gas value:', accumulatedGas.toString());
+    console.log('\nMaintaining query excess gas dictionary');
     
     await vault.sendChangeVaultData(
         provider.sender(), 
@@ -150,9 +151,9 @@ export async function run(provider: NetworkProvider) {
         vaultData.dexTonVaultAddress, // dedustTonVaultAddressからdexTonVaultAddressに変更
         newBaskets,
         waitingsDict,
-        accumulatedGas
+        dict_query_excess_gas
     );
     
     console.log('\nVault data updated successfully!');
-    console.log('accumulated_gas value:', accumulatedGas.toString());
+    console.log('dict_query_excess_gas maintained');
 }
