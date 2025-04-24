@@ -43,6 +43,7 @@ int STONFI_FORWARD_TON_AMOUNT() asm "125000000 PUSHINT";
 ;; 超過ガスを累積する
 () accumulate_excess_gas(int excess_amount) impure {
     storage::accumulated_gas += excess_amount;
+    save_storage(); ;; 状態変更後に必ず保存
 }
 
 ;; 累積したガスを送信する
