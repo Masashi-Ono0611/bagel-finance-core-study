@@ -33,11 +33,29 @@ export async function run(provider: NetworkProvider) {
       // offerJettonAddress: 'kQBqtvcqnOUQrNN5JLb42AZtNiP7hsFvVNCOqiKUEoNYGkgv', // APR16
       offerJettonAddress: 'kQBig-ypUlf0m1GUzzuJOSM1JU4Gq1IgNbT9Spsw3EQ5ivO7', // Antony
       // offerJettonAddress: 'kQBig-ypUlf0m1GUzzuJOSM1JU4Gq1IgNbT9Spsw3EQ5ivO7', // Antony
-      minAskAmount: '1', // 最小受け取り量（TON）
+      minAskAmount: '0.1', // 最小受け取り量（TON）
       tokenName: 'Jetton',
       explorerUrl: 'https://testnet.tonviewer.com'
     }
   };
+  
+  // トークンアドレスを入力してもらう
+  let jettonAddress;
+  if (isMainnet) {
+    jettonAddress = await ui.input('スワップするJettonのアドレスを入力してください（例: EQA2kCVNwVsil2EM2mB0SkXytxCqQjS4mttjDpnXmwG9T6bO）：');
+    if (!jettonAddress) {
+      await ui.write('アドレスが入力されていないため、デフォルトのSTONアドレスを使用します。');
+      jettonAddress = 'EQA2kCVNwVsil2EM2mB0SkXytxCqQjS4mttjDpnXmwG9T6bO'; // デフォルトのSTONアドレス
+    }
+    config.mainnet.offerJettonAddress = jettonAddress;
+  } else {
+    jettonAddress = await ui.input('スワップするJettonのアドレスを入力してください（例: kQBig-ypUlf0m1GUzzuJOSM1JU4Gq1IgNbT9Spsw3EQ5ivO7）：');
+    if (!jettonAddress) {
+      await ui.write('アドレスが入力されていないため、デフォルトのAntonyアドレスを使用します。');
+      jettonAddress = 'kQBig-ypUlf0m1GUzzuJOSM1JU4Gq1IgNbT9Spsw3EQ5ivO7'; // デフォルトのAntonyアドレス
+    }
+    config.testnet.offerJettonAddress = jettonAddress;
+  }
   
   // 選択されたネットワーク設定を使用
   const networkConfig = isMainnet ? config.mainnet : config.testnet;
@@ -68,6 +86,7 @@ export async function run(provider: NetworkProvider) {
 
     // スワップパラメータの初期設定
     await ui.write('\nスワップパラメータの設定:');
+    await ui.write(`- スワップするJettonアドレス: ${networkConfig.offerJettonAddress}`);
     await ui.write(`- 最小受け取り量: ${networkConfig.minAskAmount} TON`);
     await ui.write(`- DEXバージョン: v1`);
     await ui.write(`- ネットワーク: ${network}`);

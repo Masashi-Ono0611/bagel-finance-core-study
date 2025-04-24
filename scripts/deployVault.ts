@@ -133,6 +133,45 @@ const templates: Record<string, VaultTemplate> = {
             }, //Antony
         ]
     },
+    'Stonfi testnet 3baskets': {
+        image: 'https://bagel-finance.s3.ap-northeast-1.amazonaws.com/images/ton-plus-index.png',
+        decimals: '9',
+        baskets: [
+            {
+                weight: '4000',
+                jettonMasterAddress: 'kQDLvsZol3juZyOAVG8tWsJntOxeEZWEaWCbbSjYakQpuYN5',
+                dexJettonWalletOnRouterAddress: 'kQAVqalPYw0U1cPNtL6n92AEItXW5LUVKMtX0IDEZ5KsD_td', 
+                // 使用するルーターに紐づくJettonAddress
+                // https://testnet.tonviewer.com/kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n/jetton/kQDLvsZol3juZyOAVG8tWsJntOxeEZWEaWCbbSjYakQpuYN5
+                dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', 
+                dexProxyTonAddress: 'kQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGHx0I',
+                //pTONのJettonMasterAddressではなく、使用するルーターに紐づくJettonAddressを使用する
+                dexType: DexType.STONFI
+            }, //TRT
+            {
+                weight: '470998000',
+                jettonMasterAddress: 'kQBqtvcqnOUQrNN5JLb42AZtNiP7hsFvVNCOqiKUEoNYGkgv',
+                dexJettonWalletOnRouterAddress: 'kQBKQIkwBe_d50vACml6Ymh9iCdoCz-0OdCrxDTKPRdDHz6C', 
+                // 使用するルーターに紐づくJettonAddress
+                // https://testnet.tonviewer.com/kQBKQIkwBe_d50vACml6Ymh9iCdoCz-0OdCrxDTKPRdDHz6C
+                dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', 
+                dexProxyTonAddress: 'kQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGHx0I',
+                //pTONのJettonMasterAddressではなく、使用するルーターに紐づくJettonAddressを使用する
+                dexType: DexType.STONFI
+            }, //APR16
+            {
+                weight: '528998000',
+                jettonMasterAddress: 'kQBig-ypUlf0m1GUzzuJOSM1JU4Gq1IgNbT9Spsw3EQ5ivO7',
+                dexJettonWalletOnRouterAddress: 'kQD7thS_LboHHlgFXJ2tQfnsXuOWctAtNVLkh1u2rijx7Ey-', 
+                // 使用するルーターに紐づくJettonAddress
+                // https://testnet.tonviewer.com/kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n/jetton/kQBig-ypUlf0m1GUzzuJOSM1JU4Gq1IgNbT9Spsw3EQ5ivO7
+                dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', 
+                dexProxyTonAddress: 'kQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGHx0I',
+                //pTONのJettonMasterAddressではなく、使用するルーターに紐づくJettonAddressを使用する
+                dexType: DexType.STONFI
+            }, //Antony
+        ]
+    },
     // 他のテンプレートもここに追加できます
 };
 

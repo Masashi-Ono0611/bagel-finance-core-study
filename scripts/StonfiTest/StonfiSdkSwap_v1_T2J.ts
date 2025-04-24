@@ -24,8 +24,8 @@ export async function run(provider: NetworkProvider) {
     mainnet: {
       endpoint: "https://toncenter.com/api/v2/jsonRPC",
       askJettonAddress: '', // コンソールから入力
-      minAskAmount: 0,
-      tokenName: 'STON',
+      minAskAmount: 1,
+      tokenName: 'Jetton',
       explorerUrl: 'https://tonviewer.com'
     },
     testnet: {
@@ -37,15 +37,22 @@ export async function run(provider: NetworkProvider) {
     }
   };
   
-  // メインネットの場合はトークンアドレスを入力してもらう
+  // トークンアドレスを入力してもらう
+  let jettonAddress;
   if (isMainnet) {
-    const jettonAddress = await ui.input('スワップ対象のトークンアドレスを入力してください（例: EQA2kCVNwVsil2EM2mB0SkXytxCqQjS4mttjDpnXmwG9T6bO）：');
-    if (jettonAddress) {
-      config.mainnet.askJettonAddress = jettonAddress;
-    } else {
+    jettonAddress = await ui.input('スワップ対象のトークンアドレスを入力してください（例: EQA2kCVNwVsil2EM2mB0SkXytxCqQjS4mttjDpnXmwG9T6bO）：');
+    if (!jettonAddress) {
       await ui.write('アドレスが入力されていないため、デフォルトのSTONアドレスを使用します。');
-      config.mainnet.askJettonAddress = 'EQA2kCVNwVsil2EM2mB0SkXytxCqQjS4mttjDpnXmwG9T6bO'; // デフォルトのSTONアドレス
+      jettonAddress = 'EQA2kCVNwVsil2EM2mB0SkXytxCqQjS4mttjDpnXmwG9T6bO'; // デフォルトのSTONアドレス
     }
+    config.mainnet.askJettonAddress = jettonAddress;
+  } else {
+    jettonAddress = await ui.input('スワップ対象のトークンアドレスを入力してください（例: kQDAjUl0H6Og8OuIZ3FpAzzrVCRW19fE2RCnp2hqVMoYGe_F）：');
+    if (!jettonAddress) {
+      await ui.write('アドレスが入力されていないため、デフォルトのTestUSDTアドレスを使用します。');
+      jettonAddress = 'kQDAjUl0H6Og8OuIZ3FpAzzrVCRW19fE2RCnp2hqVMoYGe_F'; // デフォルトのTestUSDTアドレス
+    }
+    config.testnet.askJettonAddress = jettonAddress;
   }
   
   // 選択されたネットワーク設定を使用
@@ -77,13 +84,21 @@ export async function run(provider: NetworkProvider) {
   // pTONの初期化
   const proxyTon = new pTON.v1();
 
-  // スワップパラメータの固定値
-  const offerAmount = toNano('0.5'); // 0.5 TONをスワップ
-  const queryId = 12345; // クエリID
+  // スワップ金額を入力してもらう
+  const offerAmountStr = await ui.input('スワップするTONの金額を入力してください（例: 0.5）：');
+  let offerAmount;
+  if (!offerAmountStr || isNaN(Number(offerAmountStr))) {
+    await ui.write('有効な金額が入力されていないため、デフォルトの0.5 TONを使用します。');
+    offerAmount = toNano('0.5'); // デフォルト値
+  } else {
+    offerAmount = toNano(offerAmountStr);
+  }
+  
+  const queryId = 12345; // クエリーID
   
   // スワップパラメータの設定
   await ui.write('\nスワップパラメータの設定:');
-  await ui.write(`- TON送信量: 0.5 TON`);
+  await ui.write(`- TON送信量: ${offerAmountStr || '0.5'} TON`);
   await ui.write(`- 最小受け取り量: ${networkConfig.minAskAmount.toString()} ${networkConfig.tokenName}`);
   await ui.write(`- ターゲットトークン: ${networkConfig.tokenName}`);
   await ui.write(`- DEXバージョン: v1`);
