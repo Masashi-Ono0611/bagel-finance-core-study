@@ -624,7 +624,7 @@ slice get_wallet_address(slice admin_address) method_id {
     );
 }
 
-(int, int, slice, cell, cell, int) get_vault_data() method_id {
+(int, int, slice, cell, cell, cell) get_vault_data() method_id {
     load_storage();
     return (
         storage::stopped,
@@ -632,7 +632,7 @@ slice get_wallet_address(slice admin_address) method_id {
         storage::dex_ton_vault_address,
         storage::dict_baskets,
         storage::dict_waitings,
-        storage::accumulated_gas
+        storage::dict_query_excess_gas
     );
 }
 
