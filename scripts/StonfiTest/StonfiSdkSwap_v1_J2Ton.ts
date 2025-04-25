@@ -24,7 +24,7 @@ export async function run(provider: NetworkProvider) {
     mainnet: {
       endpoint: "https://toncenter.com/api/v2/jsonRPC",
       offerJettonAddress: '', // コンソールから入力
-      minAskAmount: '0.1', // 最小受け取り量（TON）
+      minAskAmount: '100000000', // 最小受け取り量（0.1 TON = 100000000 nanoTON）
       tokenName: 'Jetton',
       explorerUrl: 'https://tonviewer.com'
     },
@@ -33,7 +33,7 @@ export async function run(provider: NetworkProvider) {
       // offerJettonAddress: 'kQBqtvcqnOUQrNN5JLb42AZtNiP7hsFvVNCOqiKUEoNYGkgv', // APR16
       offerJettonAddress: 'kQBig-ypUlf0m1GUzzuJOSM1JU4Gq1IgNbT9Spsw3EQ5ivO7', // Antony
       // offerJettonAddress: 'kQBig-ypUlf0m1GUzzuJOSM1JU4Gq1IgNbT9Spsw3EQ5ivO7', // Antony
-      minAskAmount: '0.1', // 最小受け取り量（TON）
+      minAskAmount: '100000000', // 最小受け取り量（0.1 TON = 100000000 nanoTON）
       tokenName: 'Jetton',
       explorerUrl: 'https://testnet.tonviewer.com'
     }
@@ -87,7 +87,9 @@ export async function run(provider: NetworkProvider) {
     // スワップパラメータの初期設定
     await ui.write('\nスワップパラメータの設定:');
     await ui.write(`- スワップするJettonアドレス: ${networkConfig.offerJettonAddress}`);
-    await ui.write(`- 最小受け取り量: ${networkConfig.minAskAmount} TON`);
+    // nanoTON単位からTON単位に変換して表示
+    const minAskAmountInTon = (Number(networkConfig.minAskAmount) / 1_000_000_000).toFixed(1);
+    await ui.write(`- 最小受け取り量: ${minAskAmountInTon} TON`);
     await ui.write(`- DEXバージョン: v1`);
     await ui.write(`- ネットワーク: ${network}`);
     

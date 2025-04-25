@@ -25,11 +25,12 @@ export async function run(provider: NetworkProvider) {
     console.log('--------------------');
     console.log(`Initialized: ${initialized}`);
     console.log(`Stopped: ${vaultData.stopped}`);
-    console.log(`Dedust TON Vault Address: ${vaultData.dedustTonVaultAddress}`);
+    console.log(`DEX TON Vault Address: ${vaultData.dexTonVaultAddress}`);
     
-    // 累積ガス量の表示（TON単位）
-    const accumulatedGasTON = Number(vaultData.accumulatedGas) / 1e9;
-    console.log(`Accumulated Gas: ${vaultData.accumulatedGas} nanoTON (${accumulatedGasTON.toFixed(9)} TON)`);
+    // クエリーベースの超過ガス辞書の表示
+    console.log(`Query-based Excess Gas Dictionary: ${vaultData.dict_query_excess_gas ? 'Available' : 'Not available'}`);
+    // 注意: dict_query_excess_gasはセル型なので、直接数値として表示できません
+    // 必要に応じて辞書の内容を解析して表示することができます
     
     console.log('\nBasket Information:');
     console.log('--------------------');
@@ -39,8 +40,21 @@ export async function run(provider: NetworkProvider) {
         console.log(`\nBasket ${i + 1}:`);
         console.log(`weight: ${basket.weight}`);
         console.log(`jettonWalletAddress: ${basket.jettonWalletAddress}`);
-        console.log(`dedustPoolAddress: ${basket.dedustPoolAddress}`);
-        console.log(`dedustJettonVaultAddress: ${basket.dedustJettonVaultAddress}`);
+        // DEXタイプに応じて表示を切り替え
+        if (basket.dexType === 0) { // DeDust
+            console.log(`DEX Type: DeDust`);
+            console.log(`dexPoolAddress: ${basket.dexPoolAddress}`);
+            console.log(`dexJettonVaultAddress: ${basket.dexJettonVaultAddress}`);
+        } else if (basket.dexType === 1) { // StonFi
+            console.log(`DEX Type: StonFi`);
+            console.log(`dexRouterAddress: ${basket.dexRouterAddress}`);
+            console.log(`dexProxyTonAddress: ${basket.dexProxyTonAddress}`);
+            console.log(`dexJettonWalletOnRouterAddress: ${basket.dexJettonWalletOnRouterAddress}`);
+        } else {
+            console.log(`DEX Type: Unknown (${basket.dexType})`);
+            console.log(`dexPoolAddress: ${basket.dexPoolAddress}`);
+            console.log(`dexJettonVaultAddress: ${basket.dexJettonVaultAddress}`);
+        }
         console.log(`jettonMasterAddress: ${basket.jettonMasterAddress}`);
 
         // Get Jetton master data

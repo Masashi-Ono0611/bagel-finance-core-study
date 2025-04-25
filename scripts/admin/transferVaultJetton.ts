@@ -68,10 +68,11 @@ export async function run(provider: NetworkProvider) {
     console.log('\nFetching vault information before transfer...');
     try {
         const vaultData = await vault.getVaultData();
-        const accumulatedGasTON = Number(vaultData.accumulatedGas) / 1e9;
         console.log('\nVault Gas Information:');
         console.log('--------------------');
-        console.log(`Accumulated Gas: ${vaultData.accumulatedGas} nanoTON (${accumulatedGasTON.toFixed(9)} TON)`);
+        console.log(`Query-based Excess Gas Dictionary: ${vaultData.dict_query_excess_gas ? 'Available' : 'Not available'}`);
+        // 注意: dict_query_excess_gasはセル型なので、直接数値として表示できません
+        // 必要に応じて辞書の内容を解析して表示することができます
         
         // バスケット数を確認して表示
         console.log(`Number of Baskets: ${vaultData.numBaskets}`);

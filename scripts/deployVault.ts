@@ -133,23 +133,12 @@ const templates: Record<string, VaultTemplate> = {
             }, //Antony
         ]
     },
-    'Stonfi testnet 3baskets': {
+    'Stonfi testnet 2baskets v4': {
         image: 'https://bagel-finance.s3.ap-northeast-1.amazonaws.com/images/ton-plus-index.png',
         decimals: '9',
         baskets: [
             {
-                weight: '4000',
-                jettonMasterAddress: 'kQDLvsZol3juZyOAVG8tWsJntOxeEZWEaWCbbSjYakQpuYN5',
-                dexJettonWalletOnRouterAddress: 'kQAVqalPYw0U1cPNtL6n92AEItXW5LUVKMtX0IDEZ5KsD_td', 
-                // 使用するルーターに紐づくJettonAddress
-                // https://testnet.tonviewer.com/kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n/jetton/kQDLvsZol3juZyOAVG8tWsJntOxeEZWEaWCbbSjYakQpuYN5
-                dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', 
-                dexProxyTonAddress: 'kQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGHx0I',
-                //pTONのJettonMasterAddressではなく、使用するルーターに紐づくJettonAddressを使用する
-                dexType: DexType.STONFI
-            }, //TRT
-            {
-                weight: '470998000',
+                weight: '900000000',
                 jettonMasterAddress: 'kQBqtvcqnOUQrNN5JLb42AZtNiP7hsFvVNCOqiKUEoNYGkgv',
                 dexJettonWalletOnRouterAddress: 'kQBKQIkwBe_d50vACml6Ymh9iCdoCz-0OdCrxDTKPRdDHz6C', 
                 // 使用するルーターに紐づくJettonAddress
@@ -160,7 +149,121 @@ const templates: Record<string, VaultTemplate> = {
                 dexType: DexType.STONFI
             }, //APR16
             {
-                weight: '528998000',
+                weight: '100000000',
+                jettonMasterAddress: 'kQAN3lhyIcxZAxZZ4Ov9nVsK_3gB0CCvoYwLtyDzLji8sT1l',
+                dexJettonWalletOnRouterAddress: 'kQBGjLffACYoTwTzBEkbbHYWnoGqvqyt-M-PoK9-WoziHYKC', 
+                // 使用するルーターに紐づくJettonAddress
+                dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', 
+                dexProxyTonAddress: 'kQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGHx0I',
+                //pTONのJettonMasterAddressではなく、使用するルーターに紐づくJettonAddressを使用する
+                dexType: DexType.STONFI
+            }, //FGH
+        ]
+    },
+    'Stonfi testnet 3baskets': {
+        image: 'https://bagel-finance.s3.ap-northeast-1.amazonaws.com/images/ton-plus-index.png',
+        decimals: '9',
+        baskets: [
+            {
+                weight: '50000',
+                jettonMasterAddress: 'kQDLvsZol3juZyOAVG8tWsJntOxeEZWEaWCbbSjYakQpuYN5',
+                dexJettonWalletOnRouterAddress: 'kQAVqalPYw0U1cPNtL6n92AEItXW5LUVKMtX0IDEZ5KsD_td', 
+                // 使用するルーターに紐づくJettonAddress
+                // https://testnet.tonviewer.com/kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n/jetton/kQDLvsZol3juZyOAVG8tWsJntOxeEZWEaWCbbSjYakQpuYN5
+                dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', 
+                dexProxyTonAddress: 'kQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGHx0I',
+                //pTONのJettonMasterAddressではなく、使用するルーターに紐づくJettonAddressを使用する
+                dexType: DexType.STONFI
+            }, //TRT
+            {
+                weight: '449950000',
+                jettonMasterAddress: 'kQBqtvcqnOUQrNN5JLb42AZtNiP7hsFvVNCOqiKUEoNYGkgv',
+                dexJettonWalletOnRouterAddress: 'kQBKQIkwBe_d50vACml6Ymh9iCdoCz-0OdCrxDTKPRdDHz6C', 
+                // 使用するルーターに紐づくJettonAddress
+                // https://testnet.tonviewer.com/kQBKQIkwBe_d50vACml6Ymh9iCdoCz-0OdCrxDTKPRdDHz6C
+                dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', 
+                dexProxyTonAddress: 'kQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGHx0I',
+                //pTONのJettonMasterAddressではなく、使用するルーターに紐づくJettonAddressを使用する
+                dexType: DexType.STONFI
+            }, //APR16
+            {
+                weight: '550000000',
+                jettonMasterAddress: 'kQBig-ypUlf0m1GUzzuJOSM1JU4Gq1IgNbT9Spsw3EQ5ivO7',
+                dexJettonWalletOnRouterAddress: 'kQD7thS_LboHHlgFXJ2tQfnsXuOWctAtNVLkh1u2rijx7Ey-', 
+                // 使用するルーターに紐づくJettonAddress
+                // https://testnet.tonviewer.com/kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n/jetton/kQBig-ypUlf0m1GUzzuJOSM1JU4Gq1IgNbT9Spsw3EQ5ivO7
+                dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', 
+                dexProxyTonAddress: 'kQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGHx0I',
+                //pTONのJettonMasterAddressではなく、使用するルーターに紐づくJettonAddressを使用する
+                dexType: DexType.STONFI
+            }, //Antony
+        ]
+    },
+    'Stonfi testnet 3baskets v2': {
+        image: 'https://bagel-finance.s3.ap-northeast-1.amazonaws.com/images/ton-plus-index.png',
+        decimals: '9',
+        baskets: [
+            {
+                weight: '968300000',
+                jettonMasterAddress: 'kQB88kLQzgInBdT1E2RGOhGIK8NWPEYi8HLQzhVKOn0itufH',
+                dexJettonWalletOnRouterAddress: 'kQCZHt4O54qYqM32ZJR2iLoeshUxrsXAKEQTGHdo6AMMOCS4', 
+                // 使用するルーターに紐づくJettonAddress
+                dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', 
+                dexProxyTonAddress: 'kQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGHx0I',
+                //pTONのJettonMasterAddressではなく、使用するルーターに紐づくJettonAddressを使用する
+                dexType: DexType.STONFI
+            }, //HMSTR
+            {
+                weight: '14900000',
+                jettonMasterAddress: 'kQBqtvcqnOUQrNN5JLb42AZtNiP7hsFvVNCOqiKUEoNYGkgv',
+                dexJettonWalletOnRouterAddress: 'kQBKQIkwBe_d50vACml6Ymh9iCdoCz-0OdCrxDTKPRdDHz6C', 
+                // 使用するルーターに紐づくJettonAddress
+                // https://testnet.tonviewer.com/kQBKQIkwBe_d50vACml6Ymh9iCdoCz-0OdCrxDTKPRdDHz6C
+                dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', 
+                dexProxyTonAddress: 'kQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGHx0I',
+                //pTONのJettonMasterAddressではなく、使用するルーターに紐づくJettonAddressを使用する
+                dexType: DexType.STONFI
+            }, //APR16
+            {
+                weight: '16800000',
+                jettonMasterAddress: 'kQBig-ypUlf0m1GUzzuJOSM1JU4Gq1IgNbT9Spsw3EQ5ivO7',
+                dexJettonWalletOnRouterAddress: 'kQD7thS_LboHHlgFXJ2tQfnsXuOWctAtNVLkh1u2rijx7Ey-', 
+                // 使用するルーターに紐づくJettonAddress
+                // https://testnet.tonviewer.com/kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n/jetton/kQBig-ypUlf0m1GUzzuJOSM1JU4Gq1IgNbT9Spsw3EQ5ivO7
+                dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', 
+                dexProxyTonAddress: 'kQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGHx0I',
+                //pTONのJettonMasterAddressではなく、使用するルーターに紐づくJettonAddressを使用する
+                dexType: DexType.STONFI
+            }, //Antony
+        ]
+    },
+    'Stonfi testnet 3baskets v3': {
+        image: 'https://bagel-finance.s3.ap-northeast-1.amazonaws.com/images/ton-plus-index.png',
+        decimals: '9',
+        baskets: [
+            {
+                weight: '50000000',
+                jettonMasterAddress: 'kQAN3lhyIcxZAxZZ4Ov9nVsK_3gB0CCvoYwLtyDzLji8sT1l',
+                dexJettonWalletOnRouterAddress: 'kQBGjLffACYoTwTzBEkbbHYWnoGqvqyt-M-PoK9-WoziHYKC', 
+                // 使用するルーターに紐づくJettonAddress
+                dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', 
+                dexProxyTonAddress: 'kQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGHx0I',
+                //pTONのJettonMasterAddressではなく、使用するルーターに紐づくJettonAddressを使用する
+                dexType: DexType.STONFI
+            }, //FGH
+            {
+                weight: '450000000',
+                jettonMasterAddress: 'kQBqtvcqnOUQrNN5JLb42AZtNiP7hsFvVNCOqiKUEoNYGkgv',
+                dexJettonWalletOnRouterAddress: 'kQBKQIkwBe_d50vACml6Ymh9iCdoCz-0OdCrxDTKPRdDHz6C', 
+                // 使用するルーターに紐づくJettonAddress
+                // https://testnet.tonviewer.com/kQBKQIkwBe_d50vACml6Ymh9iCdoCz-0OdCrxDTKPRdDHz6C
+                dexRouterAddress: 'kQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4Tp6n', 
+                dexProxyTonAddress: 'kQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGHx0I',
+                //pTONのJettonMasterAddressではなく、使用するルーターに紐づくJettonAddressを使用する
+                dexType: DexType.STONFI
+            }, //APR16
+            {
+                weight: '500000000',
                 jettonMasterAddress: 'kQBig-ypUlf0m1GUzzuJOSM1JU4Gq1IgNbT9Spsw3EQ5ivO7',
                 dexJettonWalletOnRouterAddress: 'kQD7thS_LboHHlgFXJ2tQfnsXuOWctAtNVLkh1u2rijx7Ey-', 
                 // 使用するルーターに紐づくJettonAddress
@@ -482,7 +585,7 @@ export async function run(provider: NetworkProvider) {
         ),
     );
 
-    await vault.sendDeploy(provider.sender(), toNano('0.1'));
+    await vault.sendDeploy(provider.sender(), toNano('0.15'));
     await provider.waitForDeploy(vault.address);
 }
 

@@ -20,7 +20,6 @@ export async function run(provider: NetworkProvider) {
     try {
         const jettonData = await vault.getJettonData();
         const vaultData = await vault.getVaultData();
-        const accumulatedGasTON = Number(vaultData.accumulatedGas) / 1e9;
         
         console.log('\nVault情報:');
         console.log('--------------------');
@@ -28,7 +27,7 @@ export async function run(provider: NetworkProvider) {
         console.log(`ステータス: ${vaultData.stopped ? '停止中' : 'アクティブ'}`);
         console.log(`バスケット数: ${vaultData.numBaskets}`);
         console.log(`総供給量: ${jettonData.totalSupply}`);
-        console.log(`累積ガス: ${vaultData.accumulatedGas} nanoTON (${accumulatedGasTON.toFixed(9)} TON)`);
+        console.log(`クエリーベースの超過ガス辞書: ${vaultData.dict_query_excess_gas ? '利用可能' : '利用不可'}`);
         
         if (vaultData.baskets.length > 0) {
             console.log('\n⚠️ 警告: このVaultにはアクティブなバスケットが定義されています！');
