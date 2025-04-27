@@ -275,6 +275,36 @@ const templates: Record<string, VaultTemplate> = {
             }, //Antony
         ]
     },
+    'Stonfi mainnet 2baskets v1': {
+        image: 'https://bagel-finance.s3.ap-northeast-1.amazonaws.com/images/ton-plus-index.png',
+        decimals: '9',
+        baskets: [
+            {
+                weight: '400000000',
+                jettonMasterAddress: 'EQC98_qAmNEptUtPc7W6xdHh_ZHrBUFpw5Ft_IzNU20QAJav',
+                dexJettonWalletOnRouterAddress: 'EQBfuIvgYZlLaejrSNqPQ2m2YzacBdhOQ8tkHa6G9kV6e5st', 
+                // 使用するルーターに紐づくJettonAddress
+                // https://tonviewer.com/EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt/jetton/EQC98_qAmNEptUtPc7W6xdHh_ZHrBUFpw5Ft_IzNU20QAJav
+                dexRouterAddress: 'EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt', 
+                dexProxyTonAddress: 'EQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGH6aC',
+                //pTONのJettonMasterAddressではなく、使用するルーターに紐づくJettonAddressを使用する
+                // https://tonviewer.com/EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt/jetton/EQCM3B12QK1e4yZSf8GtBRT0aLMNyEsBc_DhVfRRtOEffLez
+                dexType: DexType.STONFI
+            }, //tsTON
+            {
+                weight: '600000000',
+                jettonMasterAddress: 'EQDNhy-nxYFgUqzfUzImBEP67JqsyMIcyk2S5_RwNNEYku0k',
+                dexJettonWalletOnRouterAddress: 'EQB9OLalTSd789znUFcvUBVovcLJHeARXiUVjsvQKulWa5PT', 
+                // 使用するルーターに紐づくJettonAddress
+                // https://tonviewer.com/EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt/jetton/EQDNhy-nxYFgUqzfUzImBEP67JqsyMIcyk2S5_RwNNEYku0k
+                dexRouterAddress: 'EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt', 
+                dexProxyTonAddress: 'EQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGH6aC',
+                //pTONのJettonMasterAddressではなく、使用するルーターに紐づくJettonAddressを使用する
+                // https://tonviewer.com/EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt/jetton/EQCM3B12QK1e4yZSf8GtBRT0aLMNyEsBc_DhVfRRtOEffLez
+                dexType: DexType.STONFI
+            }, //Antony
+        ]
+    },
     // 他のテンプレートもここに追加できます
 };
 
