@@ -40,6 +40,9 @@ int gas_mint_processing() asm "20000000 PUSHINT";
 ;; StonFiスワップ用のforward_ton_amount
 int STONFI_FORWARD_TON_AMOUNT() asm "125000000 PUSHINT";
 
+;; StonFi Jettonスワップ（burn/redeem）用のデフォルトガス量（0.2 TON）
+int STONFI_JETTON_SWAP_GAS() asm "200000000 PUSHINT";
+
 ;; クエリーIDごとの超過ガスを累積する
 () accumulate_query_excess_gas(int query_id, int excess_amount) impure {
     ;; クエリーIDの現在の超過ガス量を取得
@@ -432,7 +435,7 @@ int DEX_TYPE_STONFI() asm "1 PUSHINT";
     cell msg = begin_cell()
         .store_uint(0x18, 6)
         .store_slice(jetton_wallet_address) ;; ジェットンウォレットアドレス
-        .store_coins(gas) ;; ガス量
+        .store_coins(gas ? gas : STONFI_JETTON_SWAP_GAS()) ;; 指定されたガス量を使用、指定がなければデフォルト値を使用
         .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1)
         .store_maybe_ref(body)
         .end_cell();
