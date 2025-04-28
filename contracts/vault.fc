@@ -427,8 +427,7 @@ const int INDEX_UNIT = 1000000000;
                 ;; save_storage()は関数内で呼び出されるので不要
             }
             
-            ;; 累積したガスを送信
-            send_query_accumulated_gas(query_id, sender_address);
+            ;;超過ガスの送付はここでは実施しない
         }
         
         return ();
