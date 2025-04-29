@@ -40,7 +40,7 @@ int gas_mint_processing() asm "20000000 PUSHINT";
 ;; StonFiスワップ用のforward_ton_amount
 int STONFI_FORWARD_TON_AMOUNT() asm "125000000 PUSHINT";
 
-;; StonFi Jettonスワップ（burn/redeem）用のデフォルトガス量（0.2 TON）
+;; StonFi Jettonスワップ（burn/redeem）用のデフォルトガス量（0.20 TON）
 int STONFI_JETTON_SWAP_GAS() asm "200000000 PUSHINT";
 
 ;; クエリーIDごとの超過ガスを累積する

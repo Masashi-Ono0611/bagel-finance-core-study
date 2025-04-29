@@ -27,9 +27,29 @@ export async function run(provider: NetworkProvider) {
 
     // 3. Destination Address
     // The wallet address that will receive the tokens
-    const toAddr = Address.parse(
-        await ui.input('Enter destination address: ')
+    // 環境に応じたデフォルトアドレスを設定
+    const isTestnet = provider.network() === 'testnet';
+    const defaultDestAddr = isTestnet 
+        ? '0QB-re93kxeCoDDQ66RUZuG382uIAg3bhiFCzrlaeBTN6psR'
+        : 'UQAwUvvYnPpImBfrKl3-KRYh05aNrUKTGgcarTB_yzhAtwpk';
+    
+    console.log(`デフォルトの送信先アドレス（${isTestnet ? 'テストネット' : 'メインネット'}）: ${defaultDestAddr}`);
+    
+    const addressChoice = await ui.choose(
+        '送信先アドレスの選択:',
+        ['デフォルトアドレスを使用する', '別のアドレスを入力する'],
+        (v) => v
     );
+    
+    let toAddr;
+    if (addressChoice === 'デフォルトアドレスを使用する') {
+        toAddr = Address.parse(defaultDestAddr);
+        console.log(`デフォルトアドレスを使用します: ${toAddr.toString()}`);
+    } else {
+        toAddr = Address.parse(
+            await ui.input('送信先アドレスを入力してください: ')
+        );
+    }
 
     // 4. Response Address (Optional)
     // The address that will receive transfer notifications

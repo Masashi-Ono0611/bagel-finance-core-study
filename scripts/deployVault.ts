@@ -85,6 +85,33 @@ const templates: Record<string, VaultTemplate> = {
             }//wsTON
         ]
     },
+    'DeDust mainnet DOG Index v1 / 3baskets': {
+        image: 'https://bagel-finance.s3.ap-northeast-1.amazonaws.com/images/ton-plus-index.png',
+        decimals: '9',
+        baskets: [
+            {
+                weight: '798900000',
+                jettonMasterAddress: 'EQCvxJy4eG8hyHBFsZ7eePxrRsUQSFE_jpptRAYBmcG_DOGS',
+                dexPoolAddress: 'EQBjB_2TLdpOhhj25F_gYmM6fMb8hbI3rx-EA4g_ALr9O0RJ',
+                dexJettonVaultAddress: 'EQDK7GXQoAL5so_kUhe-pjl7GqXM2S_-rJcnEOPXIvjRu5Ii',
+                dexType: DexType.DEDUST
+            }, //DOGS
+            {
+                weight: '1100000',
+                jettonMasterAddress: 'EQBZ_cafPyDr5KUTs0aNxh0ZTDhkpEZONmLJA2SNGlLm4Cko',
+                dexPoolAddress: 'EQBGXZ9ddZeWypx8EkJieHJX75ct0bpkmu0Y4YoYr3NM0Z9e',
+                dexJettonVaultAddress: 'EQBUoov-LV8Rr-9HzuQFYMGmGyhqHCj9EUFVKXtMHYwLxMWt',
+                dexType: DexType.DEDUST
+            }, //REDO
+            {
+                weight: '200000000',
+                jettonMasterAddress: 'EQAuco5ZEPgB19fSTo7EmtLTJysrKxbu6M_XOFDwWQiNjCsQ',
+                dexPoolAddress: 'EQDPTd28X7oVKEByncm9AHLULSuBv9gYglHEdMoqmHYFyw-Q',
+                dexJettonVaultAddress: 'EQDMOvykNUyhLuY6qm6VFR-U193pHEV3H-XL8YfJ4agYLdVY',
+                dexType: DexType.DEDUST
+            }, //WIF
+        ]
+    },
     'DeDust testnet 2baskets': {
         image: 'https://bagel-finance.s3.ap-northeast-1.amazonaws.com/images/ton-plus-index.png',
         decimals: '9',
@@ -302,7 +329,119 @@ const templates: Record<string, VaultTemplate> = {
                 //pTONのJettonMasterAddressではなく、使用するルーターに紐づくJettonAddressを使用する
                 // https://tonviewer.com/EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt/jetton/EQCM3B12QK1e4yZSf8GtBRT0aLMNyEsBc_DhVfRRtOEffLez
                 dexType: DexType.STONFI
-            }, //Antony
+            }, //stTON
+        ]
+    },
+    'Stonfi mainnet DOG Index v1 / 3baskets': {
+        image: 'https://bagel-finance.s3.ap-northeast-1.amazonaws.com/images/ton-plus-index.png',
+        decimals: '9',
+        baskets: [
+            {
+                weight: '798900000',
+                jettonMasterAddress: 'EQCvxJy4eG8hyHBFsZ7eePxrRsUQSFE_jpptRAYBmcG_DOGS', //変更済
+                dexJettonWalletOnRouterAddress: 'EQAwbPGaCGCwLstAeRQvNMWaYC2r-83uEi6jGRcVIxS8sQz4', //変更済
+                // 使用するルーターに紐づくJettonAddress
+                // https://tonviewer.com/EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt/jetton/EQCvxJy4eG8hyHBFsZ7eePxrRsUQSFE_jpptRAYBmcG_DOGS
+                dexRouterAddress: 'EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt', //変更済
+                dexProxyTonAddress: 'EQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGH6aC', //変更済
+                //pTONのJettonMasterAddressではなく、使用するルーターに紐づくJettonAddressを使用する
+                // https://tonviewer.com/EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt/jetton/EQCM3B12QK1e4yZSf8GtBRT0aLMNyEsBc_DhVfRRtOEffLez
+                dexType: DexType.STONFI
+            }, //DOGS
+            {
+                weight: '1100000',
+                jettonMasterAddress: 'EQBZ_cafPyDr5KUTs0aNxh0ZTDhkpEZONmLJA2SNGlLm4Cko', //変更済
+                dexJettonWalletOnRouterAddress: 'EQA_4uah8neMWm1HDhg-fSCJTQH3OzooYOfhuAosAarJP_nk', //変更済
+                // 使用するルーターに紐づくJettonAddress
+                // https://tonviewer.com/EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt/jetton/EQBZ_cafPyDr5KUTs0aNxh0ZTDhkpEZONmLJA2SNGlLm4Cko
+                dexRouterAddress: 'EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt',  //変更済
+                dexProxyTonAddress: 'EQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGH6aC',//変更済
+                //pTONのJettonMasterAddressではなく、使用するルーターに紐づくJettonAddressを使用する
+                // https://tonviewer.com/EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt/jetton/EQCM3B12QK1e4yZSf8GtBRT0aLMNyEsBc_DhVfRRtOEffLez
+                dexType: DexType.STONFI
+            }, //REDO
+            {
+                weight: '200000000',
+                jettonMasterAddress: 'EQAuco5ZEPgB19fSTo7EmtLTJysrKxbu6M_XOFDwWQiNjCsQ', //変更済
+                dexJettonWalletOnRouterAddress: 'EQDWKkSQh__nFjlsfBJIARy7CtnYUqkqLzr2lJ3-GopGbbGG', //変更済
+                // 使用するルーターに紐づくJettonAddress
+                // https://tonviewer.com/EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt/jetton/EQAuco5ZEPgB19fSTo7EmtLTJysrKxbu6M_XOFDwWQiNjCsQ
+                dexRouterAddress: 'EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt',  //変更済
+                dexProxyTonAddress: 'EQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGH6aC',//変更済
+                //pTONのJettonMasterAddressではなく、使用するルーターに紐づくJettonAddressを使用する
+                // https://tonviewer.com/EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt/jetton/EQCM3B12QK1e4yZSf8GtBRT0aLMNyEsBc_DhVfRRtOEffLez
+                dexType: DexType.STONFI
+            }, //WIF
+        ]
+    },
+    'Stonfi mainnet TON OGs Index v1 / 3baskets': {
+        image: 'https://bagel-finance.s3.ap-northeast-1.amazonaws.com/images/ton-plus-index.png',
+        decimals: '9',
+        baskets: [
+            {
+                weight: '607300000',
+                jettonMasterAddress: 'EQAvlWFDxGF2lXm67y4yzC17wYKD9A0guwPkMs1gOsM__NOT', // NOT
+                dexJettonWalletOnRouterAddress: 'EQAn0fI9QmJPcj9Cq68dI-_C5jpex7DhLlS7Amu-ENQmMHg4', 
+                // 使用するルーターに紐づくJettonAddress
+                dexRouterAddress: 'EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt', 
+                dexProxyTonAddress: 'EQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGH6aC',
+                dexType: DexType.STONFI
+            }, // NOT
+            {
+                weight: '392339200',
+                jettonMasterAddress: 'EQA2kCVNwVsil2EM2mB0SkXytxCqQjS4mttjDpnXmwG9T6bO', // STON
+                dexJettonWalletOnRouterAddress: 'EQCHuSJBqmpX3zEnFGDBCcVN_ZiaGuoDL2EH0sZdboh5zkwy', 
+                // 使用するルーターに紐づくJettonAddress
+                dexRouterAddress: 'EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt', 
+                dexProxyTonAddress: 'EQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGH6aC',
+                dexType: DexType.STONFI
+            }, // STON
+            {
+                weight: '360800',
+                jettonMasterAddress: 'EQCkR1cGmnsE45N4K0otPl5EnxnRakmGqeJUNua5fkWhales', // stTON
+                dexJettonWalletOnRouterAddress: 'EQAKXsA5k-Sv_eSBGQfQUfQpWYLXLKYiJh_KgNGqYvUXfmTQ', 
+                // 使用するルーターに紐づくJettonAddress
+                // https://tonviewer.com/EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt/jetton/EQCkR1cGmnsE45N4K0otPl5EnxnRakmGqeJUNua5fkWhales
+                dexRouterAddress: 'EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt', 
+                dexProxyTonAddress: 'EQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGH6aC',
+                dexType: DexType.STONFI
+            }, // stTON
+        ]
+    },
+    'Stonfi mainnet TON OGs Index v2 / 3baskets': {
+        image: 'https://bagel-finance.s3.ap-northeast-1.amazonaws.com/images/ton-plus-index.png',
+        decimals: '9',
+        baskets: [
+            {
+                weight: '140500000',
+                jettonMasterAddress: 'EQBZ_cafPyDr5KUTs0aNxh0ZTDhkpEZONmLJA2SNGlLm4Cko', //変更済
+                dexJettonWalletOnRouterAddress: 'EQA_4uah8neMWm1HDhg-fSCJTQH3OzooYOfhuAosAarJP_nk', //変更済
+                // 使用するルーターに紐づくJettonAddress
+                // https://tonviewer.com/EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt/jetton/EQBZ_cafPyDr5KUTs0aNxh0ZTDhkpEZONmLJA2SNGlLm4Cko
+                dexRouterAddress: 'EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt',  //変更済
+                dexProxyTonAddress: 'EQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGH6aC',//変更済
+                //pTONのJettonMasterAddressではなく、使用するルーターに紐づくJettonAddressを使用する
+                // https://tonviewer.com/EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt/jetton/EQCM3B12QK1e4yZSf8GtBRT0aLMNyEsBc_DhVfRRtOEffLez
+                dexType: DexType.STONFI
+            }, //REDO
+            {
+                weight: '855500000',
+                jettonMasterAddress: 'EQB02DJ0cdUD4iQDRbBv4aYG3htePHBRK1tGeRtCnatescK0', // durev
+                dexJettonWalletOnRouterAddress: 'EQBkTakCu-m6D1uh5a-EeEgKdlLQwP2_MkscH3kNBRsSMJSv', 
+                // 使用するルーターに紐づくJettonAddress
+                dexRouterAddress: 'EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt', 
+                dexProxyTonAddress: 'EQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGH6aC',
+                dexType: DexType.STONFI
+            }, // durev
+            {
+                weight: '4000000',
+                jettonMasterAddress: 'EQA2kCVNwVsil2EM2mB0SkXytxCqQjS4mttjDpnXmwG9T6bO', // STON
+                dexJettonWalletOnRouterAddress: 'EQCHuSJBqmpX3zEnFGDBCcVN_ZiaGuoDL2EH0sZdboh5zkwy', 
+                // 使用するルーターに紐づくJettonAddress
+                dexRouterAddress: 'EQB3ncyBUTjZUA5EnFKR5_EnOMI9V1tTEAAPaiU71gc4TiUt', 
+                dexProxyTonAddress: 'EQARULUYsmJq1RiZ-YiH-IJLcAZUVkVff-KBPwEmmaQGH6aC',
+                dexType: DexType.STONFI
+            }, // STON
         ]
     },
     // 他のテンプレートもここに追加できます

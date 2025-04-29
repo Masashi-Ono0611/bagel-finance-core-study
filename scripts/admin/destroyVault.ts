@@ -80,9 +80,12 @@ export async function run(provider: NetworkProvider) {
     }
     
     // 送金先アドレスの設定
-    const defaultAddr = Address.parse('0QB-re93kxeCoDDQ66RUZuG382uIAg3bhiFCzrlaeBTN6psR');
+    const isTestnet = provider.network() === 'testnet';
+    const defaultAddr = isTestnet 
+        ? Address.parse('0QB-re93kxeCoDDQ66RUZuG382uIAg3bhiFCzrlaeBTN6psR')
+        : Address.parse('UQAwUvvYnPpImBfrKl3-KRYh05aNrUKTGgcarTB_yzhAtwpk');
     console.log(`\n⚠️ 残りのTON残高を受け取るアドレスを選択してください:`);
-    console.log(`デフォルトアドレス（VMLA_W5_Testnet）: ${defaultAddr.toString()}`);
+    console.log(`デフォルトアドレス（${isTestnet ? 'VMLA_W5_Testnet' : 'メインネット用アドレス'}）: ${defaultAddr.toString()}`);
     
     const addressChoice = await ui.choose(
         '送金先アドレスの選択:',
