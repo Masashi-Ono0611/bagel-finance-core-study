@@ -5,10 +5,12 @@ global cell storage::jetton_wallet_code;
 
 global int storage::stopped;
 global int storage::num_baskets;
-global slice storage::dedust_ton_vault_address;
+global slice storage::dex_ton_vault_address; ;; DEX (DeDust/Stonfi) TON vault address
 global cell storage::dict_baskets;
 global cell storage::dict_waitings;
-global cell storage::dict_excesses;
+;; クエリーIDごとの超過ガス管理のためのディクショナリー
+global cell storage::dict_query_excess_gas; ;; クエリーID(64ビット) -> 超過ガス量(コイン)
+global cell storage::dict_stonfi_queries; ;; StonfiSwapのユーザー情報（キー: クエリーID, 値: ユーザーアドレスと期待するExcessメッセージ数）
 
 () load_storage() impure inline {
     slice ds = get_data().begin_parse();
@@ -20,10 +22,23 @@ global cell storage::dict_excesses;
     storage::jetton_wallet_code = sj~load_ref();
     storage::stopped = ds~load_bool();
     storage::num_baskets = ds~load_uint(8);
-    storage::dedust_ton_vault_address = ds~load_msg_addr();
+    storage::dex_ton_vault_address = ds~load_msg_addr();
     storage::dict_baskets = ds~load_dict();
     storage::dict_waitings = ds~load_dict();
-    storage::dict_excesses = ds~load_dict();
+    
+    ;; クエリーIDごとの超過ガス情報を読み込み（存在する場合）
+    if (~ ds.slice_empty?()) {
+        storage::dict_query_excess_gas = ds~load_dict();
+    } else {
+        storage::dict_query_excess_gas = new_dict();
+    }
+    
+    ;; StonfiSwapのユーザー情報を読み込み（存在する場合）
+    if (~ ds.slice_empty?()) {
+        storage::dict_stonfi_queries = ds~load_dict();
+    } else {
+        storage::dict_stonfi_queries = new_dict();
+    }
 }
 
 () save_storage() impure inline {
@@ -37,10 +52,11 @@ global cell storage::dict_excesses;
         .store_ref(jetton)
         .store_bool(storage::stopped)
         .store_uint(storage::num_baskets, 8)
-        .store_slice(storage::dedust_ton_vault_address)
+        .store_slice(storage::dex_ton_vault_address)
         .store_dict(storage::dict_baskets)
         .store_dict(storage::dict_waitings)
-        .store_dict(storage::dict_excesses)
+        .store_dict(storage::dict_query_excess_gas) ;; クエリーIDごとの超過ガス情報を保存
+        .store_dict(storage::dict_stonfi_queries) ;; StonfiSwapのユーザー情報を保存
         .end_cell();
     set_data(data);
 }

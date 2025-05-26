@@ -1,13 +1,22 @@
-;; Vault
+;; Vault操作コード
 int op::deposit() asm "0x3a8f7c12 PUSHINT";
 int op::change_vault_data() asm "0xf1b32984 PUSHINT";
 int op::send_admin_message() asm "0x78d5e3af PUSHINT";
 int op::change_code_and_data() asm "0xc4a0912f PUSHINT";
 int op::change_admin() asm "3 PUSHINT";
 int op::change_content() asm "4 PUSHINT";
+int op::excesses_without_accumulated() asm "0xd53276db PUSHINT";
+
+;; Jetton標準操作コード
+int op::jetton_transfer() asm "0x0f8a7ea5 PUSHINT"; ;; Jetton転送操作コード
+
+;; DEX操作コード
 ;; DeDust
 int op::dedust_ton_swap() asm "0xea06185d PUSHINT";
 int op::dedust_jetton_swap() asm "0xe3a0d482 PUSHINT";
+;; StonFi
+int op::stonfi_ton_swap() asm "0x25938561 PUSHINT"; ;; StonFiスワップ操作コード
+int op::stonfi_jetton_swap() asm "0x25938561 PUSHINT"; ;; StonFiスワップ操作コード
 
 int er::not_admin() asm "73 PUSHINT";
 int er::unauthorized_burn() asm "74 PUSHINT";
@@ -19,6 +28,7 @@ int er::invalid_ton_amount() asm "402 PUSHINT";
 int er::not_enough_gas() asm "403 PUSHINT";
 int er::non_basket_token() asm "404 PUSHINT";
 int er::invalid_vault_data() asm "405 PUSHINT";
+int er::unknown_dex_type() asm "406 PUSHINT"; ;; 不明なDEXタイプエラー
 
 int er::unexpected() asm "999 PUSHINT";
 

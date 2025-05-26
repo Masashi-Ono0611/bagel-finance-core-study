@@ -1,19 +1,147 @@
+;; ========== ガス定数 ==========
 ;; 6905(computational_gas_price) * 1000(cur_gas_price) = 6905000
 ;; ceil(6905000) = 10000000 ~= 0.01 TON
 int provide_address_gas_consumption() asm "10000000 PUSHINT";
 
+;; 最小超過額
 int min_excesses() asm "1000000 PUSHINT";
+
+;; デポジット処理のガス計算
 int gas_deposit(int num_baskets) inline {
     return num_baskets * 3200000 + 1400000;
 }
+
+;; 転送通知のガス
 int gas_transfer_notification() asm "10000000 PUSHINT";
+
+;; 転送通知完了のガス計算
 int gas_transfer_notification_complete(int num_baskets) inline {
     return num_baskets * 2000000 + 2500000;
 }
+
+;; バーン通知のガス計算
 int gas_burn_notification(int num_baskets) inline {
     return num_baskets * 2100000 + 4000000;
 }
-int gas_excesses() asm "3000000 PUSHINT";
+
+;; 超過ガス返還処理用の一定額
+int gas_excesses() asm "10000000 PUSHINT";
+
+;; Excessメッセージ処理のガス（0.01 TON）
+int gas_excess_processing() asm "10000000 PUSHINT";
+
+;; 辞書更新のガス（0.005 TON）
+int gas_dict_update() asm "5000000 PUSHINT";
+
+;; ミント処理のガス（0.02 TON）
+int gas_mint_processing() asm "20000000 PUSHINT";
+
+;; ========== DEX固有定数 ==========
+;; StonFiスワップ用のforward_ton_amount
+int STONFI_FORWARD_TON_AMOUNT() asm "125000000 PUSHINT";
+
+;; StonFi Jettonスワップ（burn/redeem）用のデフォルトガス量（0.20 TON）
+int STONFI_JETTON_SWAP_GAS() asm "200000000 PUSHINT";
+
+;; クエリーIDごとの超過ガスを累積する
+() accumulate_query_excess_gas(int query_id, int excess_amount) impure {
+    ;; クエリーIDの現在の超過ガス量を取得
+    int current_excess = 0;
+    
+    ;; 既存の超過ガスがあれば取得
+    (slice cs, int found) = storage::dict_query_excess_gas.udict_get?(64, query_id);
+    if (found) {
+        current_excess = cs~load_coins();
+    }
+    
+    ;; 超過ガスを追加
+    current_excess += excess_amount;
+    
+    ;; 更新された超過ガス量を保存
+    builder value = begin_cell().store_coins(current_excess);
+    storage::dict_query_excess_gas~udict_set(64, query_id, value.end_cell().begin_parse());
+    
+    save_storage(); ;; 状態変更後に必ず保存
+}
+
+;; クエリーIDの累積したガスを送信する
+() send_query_accumulated_gas(int query_id, slice user_address) impure {
+    ;; クエリーIDの超過ガス量を取得
+    (slice cs, int found) = storage::dict_query_excess_gas.udict_get?(64, query_id);
+    if (~ found) {
+        return (); ;; クエリーIDの超過ガスがない場合は処理終了
+    }
+    
+    int send_amount = cs~load_coins();
+    if (send_amount < min_excesses()) {
+        return (); ;; 最小額に満たない場合は処理終了
+    }
+    
+    ;; コントラクト残高を確認
+    var [balance, _] = get_balance();
+    if (balance < send_amount + gas_excesses()) {
+        ;; 残高不足の場合は送信可能な金額を計算
+        send_amount = max(0, balance - gas_excesses() - min_excesses());
+        if (send_amount <= 0) {
+            return (); ;; 送信可能な金額がない場合は処理終了
+        }
+    }
+    
+    ;; 送信前にクエリーIDの超過ガスをリセット
+    storage::dict_query_excess_gas~udict_delete?(64, query_id);
+    save_storage(); ;; 状態変更後に必ず保存
+    
+    ;; メッセージ作成と送信
+    cell msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice(user_address)
+        .store_coins(send_amount)
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .store_uint(op::excesses_without_accumulated(), 32)
+        .store_uint(query_id, 64)
+        .end_cell();
+    
+    send_raw_message(msg, 2);
+}
+
+;; 下位互換性のためのラッパー関数
+() accumulate_excess_gas(int excess_amount) impure {
+    ;; ダミークエリーIDを使用
+    ;; 実際には使用されないが、互換性のために維持
+    int dummy_query_id = 0;
+    accumulate_query_excess_gas(dummy_query_id, excess_amount);
+}
+
+;; 下位互換性のためのラッパー関数
+() send_accumulated_gas(int query_id, slice user_address) impure {
+    ;; ダミークエリーIDを使用
+    ;; 実際には使用されないが、互換性のために維持
+    int dummy_query_id = 0;
+    send_query_accumulated_gas(dummy_query_id, user_address);
+    
+    ;; 実際のクエリーIDの超過ガスも送信
+    send_query_accumulated_gas(query_id, user_address);
+}
+
+;; 超過ガスを直接返還する（累積なし）
+() send_excesses(int query_id, slice address, int amount, int mode) impure {
+    if (amount < min_excesses()) {
+        return ();
+    }
+    
+    cell msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice(address)
+        .store_coins(amount)
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .store_uint(op::excesses_without_accumulated(), 32)
+        .store_uint(query_id, 64)
+        .end_cell();
+    
+    send_raw_message(msg, mode);
+}
+
+
 
 () mint_tokens(slice to_address, cell jetton_wallet_code, int amount, cell master_msg) impure {
     cell state_init = calculate_jetton_wallet_state_init(to_address, my_address(), jetton_wallet_code);
@@ -30,43 +158,140 @@ int gas_excesses() asm "3000000 PUSHINT";
 
 slice addr_none() asm "b{00} PUSHSLICE";
 
-() swap_dedust_ton (
+;; DEXタイプの定数
+int DEX_TYPE_DEDUST() asm "0 PUSHINT";
+int DEX_TYPE_STONFI() asm "1 PUSHINT";
+
+;; DeDust TONスワップ関数
+() swap_dedust_ton(
     int query_id,
     int swap_amount,
     int gas,
-    slice dedust_pool_address,
+    slice dex_pool_address,
     slice user_address
 ) impure {
+    ;; ユーザーアドレスを含むカスタムペイロードを作成
     cell custom_payload = begin_cell()
         .store_slice(user_address)
         .end_cell();
+    
+    ;; DeDustスワップパラメータを生成
     cell swap_params = begin_cell()
-        .store_uint(now() + 5 * 60, 32) ;; deadline:Timestamp
-        .store_slice(my_address()) ;; recipient_addr:MsgAddressInt
-        .store_slice(addr_none()) ;; referral_addr:MsgAddress
-        .store_maybe_ref(custom_payload) ;; fulfill_payload:(Maybe ^Cell)
-        .store_maybe_ref(null()) ;; reject_payload:(Maybe ^Cell)
+        .store_uint(now() + 5 * 60, 32) ;; deadline:Timestamp（5分後）
+        .store_slice(my_address()) ;; recipient_addr:MsgAddressInt（Vaultアドレス）
+        .store_slice(addr_none()) ;; referral_addr:MsgAddress（リファラルなし）
+        .store_maybe_ref(custom_payload) ;; fulfill_payload（成功時のペイロード）
+        .store_maybe_ref(null()) ;; reject_payload（失敗時のペイロード - なし）
         .end_cell();
+    
+    ;; DeDustスワップメッセージ本体を構築
     cell body = begin_cell()
-        .store_uint(op::dedust_ton_swap(), 32)
-        .store_uint(query_id, 64) ;; query_id:int64
-        ;; _:SwapStep
-        .store_coins(swap_amount)
-        .store_slice(dedust_pool_address) ;; pool_addr:MsgAddressInt
-        .store_uint(0, 1) ;; kind:SwapKind
-        .store_coins(0) ;; limit:Coins
-        .store_maybe_ref(null()) ;; next
-        .store_ref(swap_params)
+        .store_uint(op::dedust_ton_swap(), 32) ;; DeDustスワップ操作コード
+        .store_uint(query_id, 64) ;; クエリID
+        .store_coins(swap_amount) ;; スワップ金額
+        .store_slice(dex_pool_address) ;; プールアドレス
+        .store_uint(0, 1) ;; スワップ種類（0=通常）
+        .store_coins(0) ;; 制限金額（0=制限なし）
+        .store_maybe_ref(null()) ;; 次のステップ（なし）
+        .store_ref(swap_params) ;; スワップパラメータ
         .end_cell();
+    
+    ;; DeDustの場合は常にdex_ton_vault_addressに送信
     cell msg = begin_cell()
-        .store_uint(0x18, 6)
-        .store_slice(storage::dedust_ton_vault_address)
-        .store_coins(swap_amount + gas)
-        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1)
-        .store_maybe_ref(body)
+        .store_uint(0x18, 6) ;; 通常の内部メッセージ
+        .store_slice(storage::dex_ton_vault_address) ;; 送信先アドレス
+        .store_coins(swap_amount + gas) ;; 送金額 + ガス代
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1) ;; 標準ヘッダー（すべて0）
+        .store_maybe_ref(body) ;; メッセージ本体
         .end_cell();
+    
+    ;; メッセージを送信（モード0 = 残高から支払い）
     send_raw_message(msg, 0);
 }
+
+;; StonFi TONスワップ関数
+() swap_stonfi_ton(
+    int query_id,
+    int swap_amount,
+    int gas,
+    slice dex_proxy_ton_address,
+    slice user_address,
+    slice dex_jetton_wallet_on_router_address
+) impure {
+    ;; StonFiスワップ用のペイロード生成
+    cell swap_payload = begin_cell()
+        .store_uint(op::stonfi_ton_swap(), 32) ;; StonFiスワップ操作コード
+        .store_slice(dex_jetton_wallet_on_router_address) ;; ルーター上のJettonウォレットアドレス
+        .store_coins(0) ;; 最小受け取り量
+        .store_slice(my_address()) ;; 受け取りアドレス
+        .store_uint(0, 1) ;; リファラルなし
+        .end_cell();
+    
+    ;; Jetton転送メッセージを構築
+    cell body = begin_cell()
+        .store_uint(op::transfer(), 32) ;; Jetton転送操作コード
+        .store_uint(query_id, 64) ;; クエリID
+        .store_coins(swap_amount) ;; 送金額
+        .store_slice(dex_proxy_ton_address) ;; プロキシTONアドレス
+        .store_slice(my_address()) ;; 応答先アドレス
+        .store_maybe_ref(null()) ;; カスタムペイロードなし
+        .store_coins(gas) ;; フォワードTON量
+        .store_uint(1, 1) ;; フォワードペイロードあり
+        .store_ref(swap_payload) ;; スワップペイロード
+        .end_cell();
+    
+    ;; StonFiの場合はプロキシTONアドレスに直接送信
+    cell msg = begin_cell()
+        .store_uint(0x18, 6) ;; 通常の内部メッセージ
+        .store_slice(dex_proxy_ton_address) ;; 送信先アドレス
+        .store_coins(swap_amount + gas) ;; 送金額 + ガス代
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1) ;; 標準ヘッダー（すべて0）
+        .store_maybe_ref(body) ;; メッセージ本体
+        .end_cell();
+    
+    ;; メッセージを送信（モード0 = 残高から支払い）
+    send_raw_message(msg, 0);
+}
+
+;; DEX TONスワップ関数（汎用化）- DEXタイプに応じて適切な関数を呼び出す
+() swap_dex_ton(
+    int query_id,
+    int swap_amount,
+    int gas,
+    slice dex_address, ;; DEXタイプに応じて意味が異なる（DeDustの場合はプールアドレス、StonFiの場合はプロキシTONアドレス）
+    slice user_address,
+    int dex_type,
+    slice jetton_wallet_address, ;; バスケットから取得したjettonWalletAddress（DeDustで使用、StonFiでは使用しない）
+    slice dex_jetton_wallet_on_router_address ;; StonFi用のルーター上のJettonウォレットアドレス（StonFiでのみ使用）
+) impure {
+    if (dex_type == DEX_TYPE_DEDUST()) {
+        ;; DeDustの場合
+        swap_dedust_ton(
+            query_id, 
+            swap_amount, 
+            gas, 
+            dex_address, 
+            user_address
+        );
+    } else {
+        if (dex_type == DEX_TYPE_STONFI()) {
+            ;; StonFiの場合
+            swap_stonfi_ton(
+                query_id, 
+                swap_amount, 
+                gas, 
+                dex_address, 
+                user_address, 
+                dex_jetton_wallet_on_router_address ;; 変更: dexJettonWalletOnRouterAddressを使用
+            );
+        } else {
+            ;; 不明なDEXタイプの場合はエラー
+            throw(er::unknown_dex_type());
+        }
+    }
+}
+
+
 
 () mint_index(
     int query_id,
@@ -124,16 +349,18 @@ slice addr_none() asm "b{00} PUSHSLICE";
     send_raw_message(msg, 0);
 }
 
-() swap_dedust_jetton (
+;; DeDust Jettonスワップ関数
+() swap_dedust_jetton(
     int query_id,
     slice jetton_wallet_address,
     int gas,
     int swap_amount,
-    slice dedust_vault_address,
+    slice dex_vault_address,
     int forward_fee,
-    slice dedust_pool_address,
+    slice dex_pool_address,
     slice user_address
 ) impure {
+    ;; DeDust用のパラメータ生成
     cell swap_params = begin_cell()
         .store_uint(now() + 60 * 5, 32) ;; deadline:Timestamp
         .store_slice(user_address) ;; recipient_addr:MsgAddressInt
@@ -141,24 +368,27 @@ slice addr_none() asm "b{00} PUSHSLICE";
         .store_maybe_ref(null()) ;; fulfill_payload:(Maybe ^Cell)
         .store_maybe_ref(null()) ;; reject_payload:(Maybe ^Cell)
         .end_cell();
+        
     cell forward_payload = begin_cell()
         .store_uint(op::dedust_jetton_swap(), 32)
-        .store_slice(dedust_pool_address) ;; pool_addr:MsgAddressInt
+        .store_slice(dex_pool_address) ;; pool_addr:MsgAddressInt
         .store_uint(0, 1) ;; kind:SwapKind
         .store_coins(0) ;; limit:Coins
         .store_maybe_ref(null()) ;; next
         .store_ref(swap_params)
         .end_cell();
+    
     cell body = begin_cell()
         .store_uint(op::transfer(), 32)
         .store_uint(query_id, 64)
         .store_coins(swap_amount)
-        .store_slice(dedust_vault_address) ;; DeDust vault address
+        .store_slice(dex_vault_address) ;; DEX vault address
         .store_slice(user_address)
         .store_uint(0, 1)
         .store_coins(forward_fee)
         .store_maybe_ref(forward_payload)
         .end_cell();
+        
     cell msg = begin_cell()
         .store_uint(0x18, 6)
         .store_slice(jetton_wallet_address)
@@ -169,16 +399,89 @@ slice addr_none() asm "b{00} PUSHSLICE";
     send_raw_message(msg, 0);
 }
 
-() send_excesses(int query_id, slice to_address, int value, int mode) impure {
-    if (value > min_excesses()) {
-        cell msg = begin_cell()
-            .store_uint(0x10, 6) ;; nobounce - int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool src:MsgAddress -> 011000
-            .store_slice(to_address)
-            .store_coins(value)
-            .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-            .store_uint(op::excesses(), 32)
-            .store_uint(query_id, 64)
-            .end_cell();
-        send_raw_message(msg, mode);
+;; StonFi Jettonスワップ関数
+() swap_stonfi_jetton(
+    int query_id,
+    slice jetton_wallet_address,
+    int gas,
+    int swap_amount,
+    slice dex_vault_address, ;; プロキシTONアドレス
+    int forward_fee,
+    slice dex_pool_address, ;; ルーターアドレス
+    slice user_address
+) impure {
+    ;; StonFiスワップ用のペイロード生成
+    cell forward_payload = begin_cell()
+        .store_uint(op::stonfi_jetton_swap(), 32)  ;; StonFiスワップ操作コード
+        .store_slice(dex_vault_address)  ;; プロキシTONアドレス
+        .store_coins(1)  ;; 最小受け取り量
+        .store_slice(user_address)  ;; 受取人アドレス
+        .store_slice(addr_none())  ;; リファラルアドレス（なし）
+        .store_uint(1, 1)  ;; TON形式で送信するフラグ
+        .end_cell();
+    
+    cell body = begin_cell()
+        .store_uint(op::jetton_transfer(), 32)  ;; Jetton転送操作コード
+        .store_uint(query_id, 64)
+        .store_coins(swap_amount)
+        .store_slice(dex_pool_address) ;; ルーターアドレス
+        .store_slice(user_address) ;; ユーザーアドレスに直接送信
+        .store_maybe_ref(null()) ;; カスタムペイロードなし
+        .store_coins(STONFI_FORWARD_TON_AMOUNT()) ;; フォワードTON量
+        .store_uint(1, 1) ;; フォワードペイロードあり
+        .store_maybe_ref(forward_payload)
+        .end_cell();
+        
+    cell msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice(jetton_wallet_address) ;; ジェットンウォレットアドレス
+        .store_coins(STONFI_JETTON_SWAP_GAS()) ;; デフォルトのガス量を常に使用
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1)
+        .store_maybe_ref(body)
+        .end_cell();
+    send_raw_message(msg, 0);
+}
+
+;; DEX Jettonスワップ関数（汎用化）- DEXタイプに応じて適切な関数を呼び出す
+() swap_dex_jetton (
+    int query_id,
+    slice jetton_wallet_address,
+    int gas, ;;gas_per_basket
+    int swap_amount,
+    slice dex_vault_address,
+    int forward_fee, ;;GAS_PER_SWAP
+    slice dex_pool_address,
+    slice user_address,
+    int dex_type
+) impure {
+    if (dex_type == DEX_TYPE_DEDUST()) {
+        ;; DeDustの場合
+        swap_dedust_jetton(
+            query_id,
+            jetton_wallet_address,
+            gas,
+            swap_amount,
+            dex_vault_address,
+            forward_fee,
+            dex_pool_address,
+            user_address
+        );
+    } else {
+        if (dex_type == DEX_TYPE_STONFI()) {
+            ;; StonFiの場合
+            swap_stonfi_jetton(
+                query_id,
+                jetton_wallet_address,
+                gas,
+                swap_amount,
+                dex_vault_address,
+                forward_fee,
+                dex_pool_address,
+                user_address
+            );
+        } else {
+            ;; 不明なDEXタイプの場合はエラー
+            throw(er::unknown_dex_type());
+        }
     }
 }

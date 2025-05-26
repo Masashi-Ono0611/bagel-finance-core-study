@@ -53,7 +53,10 @@ const int INDEX_UNIT = 1000000000;
             dict_swap~udict_set_builder(8, i, begin_cell().store_coins(swap_amount));
             i += 1;
         }
-        throw_unless(er::invalid_deposit_body(), in_msg_body.slice_empty?()); ;; throw if there is extra TON amount
+        
+        ;; StonFiの場合はMint量を読み込むため、ここではメッセージが空かどうかをチェックしない
+        ;; Mint量を読み込む前にメッセージの内容を保存
+        slice saved_msg_body = in_msg_body;
         ;; swap and send to vault each baskets
         int i = 0;
         while (i < storage::num_baskets) {
@@ -62,22 +65,131 @@ const int INDEX_UNIT = 1000000000;
             int swap_amount = slice_swap~load_coins();
             (cell cell_baskets, int found_baskets) = storage::dict_baskets.udict_get_ref?(8, i);
             throw_unless(er::unexpected(), found_baskets);
-            slice  slice_baskets = cell_baskets.begin_parse();
-            slice_baskets~load_coins(); ;; weight
-            slice_baskets~load_msg_addr(); ;; jetton wallet address
-            cell dedust = slice_baskets~load_ref();
-            slice slice_dedust = dedust.begin_parse();
-            slice dedust_pool_address = slice_dedust~load_msg_addr();
-            swap_dedust_ton(
+            slice slice_baskets = cell_baskets.begin_parse();
+            slice_baskets~load_coins(); ;; 重み
+            slice jetton_wallet_address = slice_baskets~load_msg_addr(); ;; Jettonウォレットアドレス
+            cell dex_data = slice_baskets~load_ref();
+            slice slice_dex = dex_data.begin_parse();
+            
+            ;; ========== DEXタイプの処理 ==========
+            ;; デフォルトはDeDustタイプ
+            int dex_type = DEX_TYPE_DEDUST();
+            
+            ;; バスケットにタイプ情報があれば読み込む
+            if (~ slice_dex.slice_empty?()) {
+                dex_type = slice_dex~load_uint(2); ;; 2ビットでDEXタイプを表現
+            }
+            
+            ;; DEX固有のアドレス変数
+            slice dex_address = null();
+            slice stonfi_jetton_wallet_on_router = null(); ;; StonFi用のルーター上のJettonウォレットアドレス
+            
+            if (dex_type == DEX_TYPE_DEDUST()) {
+                ;; DeDustの場合
+                dex_address = slice_dex~load_msg_addr(); ;; プールアドレス
+                slice_dex~load_msg_addr(); ;; Jettonバウルトアドレスをスキップ
+            } else {
+                if (dex_type == DEX_TYPE_STONFI()) {
+                    ;; StonFiの場合
+                    slice router_address = slice_dex~load_msg_addr(); ;; ルーターアドレス
+                    slice proxy_ton_address = slice_dex~load_msg_addr(); ;; プロキシTONアドレス
+                    stonfi_jetton_wallet_on_router = slice_dex~load_msg_addr(); ;; ルーター上のJettonウォレットアドレス
+                    
+                    ;; プロキシTONアドレスを使用
+                    dex_address = proxy_ton_address;
+                } else {
+                    ;; 不明なDEXタイプの場合
+                    dex_address = slice_dex~load_msg_addr();
+                }
+            }
+            
+            ;; ========== DEXスワップ処理 ==========
+            ;; DEXタイプに応じたスワップ処理を実行
+            
+            ;; デフォルトのルーター上ウォレットアドレス（空アドレス）
+            slice router_jetton_wallet = addr_none();
+            
+            ;; StonFiの場合はルーター上のJettonウォレットアドレスを使用
+            if (dex_type == DEX_TYPE_STONFI()) {
+                router_jetton_wallet = stonfi_jetton_wallet_on_router;
+            }
+            
+            ;; スワップ処理の実行
+            swap_dex_ton(
                 query_id,
                 swap_amount,
                 gas_per_basket,
-                dedust_pool_address,
-                sender_address
+                dex_address,
+                sender_address,
+                dex_type,
+                jetton_wallet_address,
+                router_jetton_wallet
             );
             i += 1;
         }
-        send_excesses(query_id, sender_address, msg_value - total_swap_amount - gas, 2);
+        ;; ========== StonFiバスケットの処理 ==========
+        ;; StonFiバスケットの数をカウント
+        int stonfi_basket_count = 0;
+        i = 0;
+        
+        while (i < storage::num_baskets) {
+            (cell data_baskets, int found_baskets) = storage::dict_baskets.udict_get_ref?(8, i);
+            throw_unless(er::invalid_vault_data(), found_baskets);
+            
+            slice slice_baskets = data_baskets.begin_parse();
+            slice_baskets~load_coins(); ;; 重み
+            slice_baskets~load_msg_addr(); ;; Jettonウォレットアドレス
+            cell dex_data = slice_baskets~load_ref();
+            slice slice_dex = dex_data.begin_parse();
+            
+            ;; DEXタイプの確認
+            int dex_type = DEX_TYPE_DEDUST(); ;; デフォルトはDeDust
+            
+            if (~ slice_dex.slice_empty?()) {
+                dex_type = slice_dex~load_uint(2); ;; DEXタイプを読み込む
+            }
+            
+            ;; StonFiバスケットのカウント
+            if (dex_type == DEX_TYPE_STONFI()) {
+                stonfi_basket_count += 1;
+            }
+            
+            i += 1;
+        }
+        
+        ;; StonFiバスケットがある場合の処理
+        if (stonfi_basket_count > 0) {
+            ;; ユーザー指定のMint量を取得
+            int requested_mint_amount = 0;
+            
+            if (~ saved_msg_body.slice_empty?()) {
+                ;; メッセージからMint量を読み込む
+                requested_mint_amount = saved_msg_body~load_coins();
+                
+                ;; 余分なデータがないことを確認
+                throw_unless(er::invalid_deposit_body(), saved_msg_body.slice_empty?());
+            } else {
+                ;; デフォルトのMint量を使用
+                requested_mint_amount = INDEX_UNIT;
+            }
+            
+            ;; StonFiクエリ情報を登録
+            storage::dict_stonfi_queries~udict_set_builder(
+                64,
+                query_id,
+                begin_cell()
+                    .store_slice(sender_address)     ;; ユーザーアドレス
+                    .store_uint(stonfi_basket_count, 8)  ;; 期待するExcessメッセージ数
+                    .store_uint(0, 8)               ;; 受信カウンター（初期値0）
+                    .store_coins(requested_mint_amount)  ;; 要求されたMint量
+            );
+            
+            ;; ストレージを保存
+            save_storage();
+        }
+        
+        ;; Do not send excess gas here to allow it to naturally flow to the next step in the transaction chain
+        ;; The excess gas (msg_value - total_swap_amount - gas) will be automatically carried to the next operation
         return ();
     }
 
@@ -112,8 +224,8 @@ const int INDEX_UNIT = 1000000000;
             user_address = payload_slice~load_msg_addr();
         }
 
-        ;; store for excesses
-        storage::dict_excesses~udict_set_builder(64, query_id, begin_cell().store_slice(user_address));
+        ;; At this point, we know we're in a Jetton Notify transaction
+        ;; ミント後に直接リファンドが実行されるため、特別な追跡操作は不要
 
         cell dict_balances = new_dict();
         ;; get tmp balances from storage 
@@ -171,13 +283,13 @@ const int INDEX_UNIT = 1000000000;
                     slice_hash(user_address),
                     begin_cell().store_dict(dict_balances)
                 );
-                save_storage();
-                send_excesses(
-                    query_id,
-                    user_address,
-                    msg_value - GAS_PER_MINT_SEND - gas_transfer_notification(),
-                    2
-                );
+                save_storage();              
+                ;;累積ガスを保存
+                int excess_gas = msg_value - gas_transfer_notification();
+                if (excess_gas > 0) {
+                    accumulate_query_excess_gas(query_id, excess_gas);
+                    ;; save_storage()は関数内で呼び出されるので不要
+                }
                 return ();
             }
             i += 1;
@@ -206,6 +318,7 @@ const int INDEX_UNIT = 1000000000;
                     int balance = slice_balances~load_coins();
                     int store_amount = muldivc(mint_amount, weight, INDEX_UNIT);
                     int extra_amount = balance - store_amount;
+                    ;;大野メモ 今後の修正点 転送するJettonがTON建で0.01TON以下なら転送をしない方が有利。この実装は一旦スキップ
                     if (extra_amount > 0) {
                         send_jetton(
                             query_id,
@@ -222,23 +335,109 @@ const int INDEX_UNIT = 1000000000;
         }
 
         save_storage();
-        send_excesses(
-            query_id,
-            user_address,
-            msg_value - GAS_PER_MINT_SEND - gas_transfer_notification_complete(storage::num_baskets),
-            2
-        );
+        ;;累積ガスを保存
+        int excess_gas = msg_value - gas_transfer_notification(); ;;;大野メモ 今後の修正点 ジェットン転送の想定ガス代(約30.01TON) * (バスケットの数-1) を追加で引きたいが、一旦スキップ
+        if (excess_gas > 0) {
+            accumulate_query_excess_gas(query_id, excess_gas);
+        }
+        ;; ミント処理完了後、累積したガスを送信
+        send_query_accumulated_gas(query_id, user_address);
         return ();
     }
 
     if (op == op::excesses()) {
-        (slice slice_excesses, int found_excesses) = storage::dict_excesses.udict_get?(64, query_id);
-        if (found_excesses) {
-            slice user_address = slice_excesses~load_msg_addr();
-            send_excesses(query_id, user_address, msg_value - gas_excesses(), 2);
-            storage::dict_excesses~udict_delete?(64, query_id);
+        ;; クエリーに対応するユーザー情報を取得
+        (slice user_data, int found) = storage::dict_stonfi_queries.udict_get?(64, query_id);
+        
+        if (found) {
+            ;; ==========================================
+            ;; StonFiの場合の処理
+            ;; ==========================================
+            
+            ;; ユーザー情報を取得
+            slice user_address = user_data~load_msg_addr();
+            int expected_count = user_data~load_uint(8);
+            int received_count = user_data~load_uint(8);
+            int requested_mint_amount = user_data~load_coins();
+            
+            ;; 受信カウンターを増やす
+            received_count += 1;
+            
+            ;; 更新された受信カウンターを保存
+            storage::dict_stonfi_queries~udict_set_builder(
+                64,
+                query_id,
+                begin_cell()
+                    .store_slice(user_address)
+                    .store_uint(expected_count, 8)
+                    .store_uint(received_count, 8)
+                    .store_coins(requested_mint_amount)
+            );
             save_storage();
+            
+            ;; すべてのExcessメッセージを受信したか確認
+            if (received_count >= expected_count) {
+                ;; 最終バスケットの場合、最終Excess処理のガスを差し引く
+                int excess_gas = msg_value - (gas_excess_processing() + gas_dict_update() + gas_mint_processing());
+                
+                ;; ミント処理を実行
+                mint_index(
+                    query_id,
+                    user_address,
+                    storage::jetton_wallet_code,
+                    GAS_PER_MINT_SEND,
+                    requested_mint_amount
+                );
+                
+                storage::total_supply += requested_mint_amount;
+                
+                ;; 処理完了後、エントリを削除
+                storage::dict_stonfi_queries~udict_delete?(64, query_id);
+                save_storage();
+                
+                ;; ミント処理完了後、残りのガスを累積
+                if (excess_gas > 0) {
+                    accumulate_query_excess_gas(query_id, excess_gas);
+                    ;; save_storage()は関数内で呼び出されるので不要
+                }
+                
+                ;; 累積したガスを送信
+                send_query_accumulated_gas(query_id, user_address);
+            } else {
+                ;; 中間バスケットの場合、中間Excess処理のガスを差し引く
+                int excess_gas = msg_value - (gas_excess_processing() + gas_dict_update());
+                
+                ;; すべてのExcessメッセージを受信していない場合は、クエリーIDごとにガスを累積
+                if (excess_gas > 0) {
+                    accumulate_query_excess_gas(query_id, excess_gas);
+                    ;; save_storage()は関数内で呼び出されるので不要
+                }
+            }
+        } else {
+            ;; ==========================================
+            ;; DeDustの場合の処理
+            ;; ==========================================
+            
+            ;; DeDustの場合のガス計算
+            int excess_gas = msg_value - gas_excesses();
+            
+            ;; クエリーIDごとにガスを累積
+            if (excess_gas > 0) {
+                accumulate_query_excess_gas(query_id, excess_gas);
+                ;; save_storage()は関数内で呼び出されるので不要
+            }
+            
+            ;;超過ガスの送付はここでは実施しない
         }
+        
+        return ();
+    }
+    
+    
+    if (op == op::excesses_without_accumulated()) {
+        ;; 外部からのexcesses_without_accumulated呼び出し時にガスをそのまま返還
+        ;; 送信元に返還するだけなので、dict_excessesを参照する必要はない
+        send_excesses(query_id, sender_address, msg_value - gas_excesses(), 2);
         return ();
     }
 
@@ -263,33 +462,59 @@ const int INDEX_UNIT = 1000000000;
             slice slice_baskets = cell_baskets.begin_parse();
             int weight = slice_baskets~load_coins();
             slice jetton_wallet_address = slice_baskets~load_msg_addr();
-            cell dedust = slice_baskets~load_ref();
-            slice slice_dedust = dedust.begin_parse();
-            slice dedust_pool_address = slice_dedust~load_msg_addr();
-            slice dedust_vault_address = slice_dedust~load_msg_addr();
+            cell dex_data = slice_baskets~load_ref();
+            slice slice_dex = dex_data.begin_parse();
+            ;; DEXタイプを読み込む（既存のバスケットにはタイプがないため、デフォルトでDeDustとして処理）
+            int dex_type = DEX_TYPE_DEDUST();
+            ;; バスケットにタイプ情報があれば読み込む
+            if (~ slice_dex.slice_empty?()) {
+                ;; 先頭バイトがタイプ情報であるか確認
+                dex_type = slice_dex~load_uint(2); ;; 2ビットで最大4種類のDEXをサポート
+            }
+            
+            ;; DEXタイプに応じて適切なアドレスを取得
+            slice dex_pool_address = null();
+            slice dex_vault_address = null();
+            
+            if (dex_type == DEX_TYPE_DEDUST()) {
+                ;; DeDustの場合はプールアドレスとVaultアドレスを使用
+                dex_pool_address = slice_dex~load_msg_addr(); ;; dex_pool_address
+                dex_vault_address = slice_dex~load_msg_addr(); ;; dex_vault_address
+            } else {
+                if (dex_type == DEX_TYPE_STONFI()) {
+                    ;; StonFiの場合はルーターアドレスとプロキシTONアドレスを取得
+                    slice router_address = slice_dex~load_msg_addr(); ;; dex_router_address (ルーターアドレス)
+                    slice proxy_ton_address = slice_dex~load_msg_addr(); ;; dex_proxy_ton_address (プロキシTONアドレス)
+                    
+                    ;; ルーターアドレスをdex_pool_addressとして設定
+                    dex_pool_address = router_address;
+                    ;; プロキシTONアドレスをdex_vault_addressとして設定
+                    dex_vault_address = proxy_ton_address;
+                } else {
+                    ;; 不明なDEXタイプの場合はデフォルトの動作
+                    dex_pool_address = slice_dex~load_msg_addr();
+                    dex_vault_address = slice_dex~load_msg_addr();
+                }
+            }
             int swap_amount = muldiv(jetton_amount, weight, INDEX_UNIT);
-            swap_dedust_jetton(
+            swap_dex_jetton(
                 query_id,
                 jetton_wallet_address,
                 gas_per_basket,
                 swap_amount,
-                dedust_vault_address,
+                dex_vault_address,
                 GAS_PER_SWAP,
-                dedust_pool_address,
-                from_address
+                dex_pool_address,
+                from_address,
+                dex_type
             );
             i += 1;
         }
 
-        slice response_address = in_msg_body~load_msg_addr();
-        if (response_address.preload_uint(2) != 0) {
-            send_excesses(
-                query_id,
-                response_address,
-                msg_value - gas - gas_burn_notification(storage::num_baskets),
-                2
-            );
-        }
+        ;; We don't need to read response_address or send excesses explicitly
+        ;; Excess gas will be automatically returned to the original sender at the end of the transaction chain
+        ;; Skip reading the response_address from the message body
+        in_msg_body~load_msg_addr();
         return ();
     }
 
@@ -297,7 +522,7 @@ const int INDEX_UNIT = 1000000000;
         throw_unless(er::not_admin(), equal_slices(sender_address, storage::admin_address));
         storage::stopped = in_msg_body~load_bool();
         storage::num_baskets = in_msg_body~load_uint(8);
-        storage::dedust_ton_vault_address = in_msg_body~load_msg_addr();
+        storage::dex_ton_vault_address = in_msg_body~load_msg_addr(); ;; DEX TON vault address
         storage::dict_baskets = in_msg_body~load_dict();
         save_storage();
         return ();
@@ -380,7 +605,13 @@ const int INDEX_UNIT = 1000000000;
 
 (int, int, slice, cell, cell) get_jetton_data() method_id {
     load_storage();
-    return (storage::total_supply, -1, storage::admin_address, storage::content, storage::jetton_wallet_code);
+    return (
+        storage::total_supply, 
+        -1, 
+        storage::admin_address, 
+        storage::content, 
+        storage::jetton_wallet_code
+    );
 }
 
 slice get_wallet_address(slice admin_address) method_id {
@@ -392,13 +623,15 @@ slice get_wallet_address(slice admin_address) method_id {
     );
 }
 
-(int, int, slice, cell) get_vault_data() method_id {
+(int, int, slice, cell, cell, cell) get_vault_data() method_id {
     load_storage();
     return (
         storage::stopped,
         storage::num_baskets,
-        storage::dedust_ton_vault_address,
-        storage::dict_baskets
+        storage::dex_ton_vault_address,
+        storage::dict_baskets,
+        storage::dict_waitings,
+        storage::dict_query_excess_gas
     );
 }
 
@@ -408,6 +641,6 @@ cell get_waitings() method_id {
 }
 
 cell get_excesses() method_id {
-    load_storage();
-    return storage::dict_excesses;
+    ;; 新しい実装では内部転送カウンターが不要になったため、空の辞書を返す
+    return new_dict();
 }

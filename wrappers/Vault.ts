@@ -14,10 +14,16 @@ import { Op } from '../utils/Constants';
 
 export type Basket = {
     weight: bigint;
-    jettonWalletAddress: Address;
-    dedustPoolAddress: Address;
-    dedustJettonVaultAddress: Address;
+    jettonWalletAddress: Address;    // 動的に設定されるJettonウォレットアドレス（DeDustとStonFi共通）
+    // DEX共通フィールド
+    dexPoolAddress: Address;         // DEXプールアドレス（DeDustの場合はトークンペア別のプール、StonFiの場合はルーターアドレス）
+    dexJettonVaultAddress: Address;   // DEXのJettonVaultアドレス（DeDustの場合は実際のVault、StonFiの場合はダミー）
+    // StonFi V1用追加フィールド
+    dexRouterAddress?: Address;      // StonFi V1のルーターアドレス
+    dexProxyTonAddress?: Address;    // StonFi V1のプロキシTONアドレス
+    dexJettonWalletOnRouterAddress?: Address; // StonFi V1のルーター上のJettonウォレットアドレス
     jettonMasterAddress: Address;
+    dexType?: number;                // DEXタイプ（0=DeDust, 1=Stonfi）
 };
 
 export type Waiting = {
@@ -34,7 +40,7 @@ type VaultConfig = {
     adminAddress: Address;
     content: Cell;
     walletCode: Cell;
-    dedustTonVaultAddress: Address;
+    dexTonVaultAddress: Address; // DEX（DeDust/Stonfi）TON vault address
     baskets: Basket[];
 };
 
@@ -42,16 +48,42 @@ function basketsToDict(baskets: Basket[]) {
     const dictBaskets = Dictionary.empty(Dictionary.Keys.Uint(8), Dictionary.Values.Cell());
     for (let i = 0; i < baskets.length; i++) {
         const basket = baskets[i];
-        const dedust = beginCell()
-            .storeAddress(basket.dedustPoolAddress)
-            .storeAddress(basket.dedustJettonVaultAddress)
-            .endCell();
+        
+        // DEXタイプの設定（指定がない場合はデフォルトで0（DeDust））
+        const dexType = basket.dexType !== undefined ? basket.dexType : 0;
+        
+        // DEX情報を含むセルを作成
+        let dexData;
+        if (dexType === 0) { // DeDust
+            dexData = beginCell()
+                // DEXタイプを2ビットで格納（0=DeDust）
+                .storeUint(dexType, 2)
+                .storeAddress(basket.dexPoolAddress)
+                .storeAddress(basket.dexJettonVaultAddress)
+                .endCell();
+        } else if (dexType === 1) { // StonFi
+            dexData = beginCell()
+                // DEXタイプを2ビットで格納（1=Stonfi）
+                .storeUint(dexType, 2)
+                .storeAddress(basket.dexRouterAddress) // StonFiルーターアドレス
+                .storeAddress(basket.dexProxyTonAddress) // StonFiプロキシTONアドレス
+                .storeAddress(basket.dexJettonWalletOnRouterAddress) // StonFiルーター上のJettonウォレットアドレス
+                .endCell();
+        } else {
+            // 不明なDEXタイプの場合はデフォルトでDeDustとして扱う
+            dexData = beginCell()
+                .storeUint(0, 2) // デフォルトで0（DeDust）
+                .storeAddress(basket.dexPoolAddress)
+                .storeAddress(basket.dexJettonVaultAddress)
+                .endCell();
+        }
+            
         dictBaskets.set(
             i,
             beginCell()
                 .storeCoins(basket.weight)
                 .storeAddress(basket.jettonWalletAddress)
-                .storeRef(dedust)
+                .storeRef(dexData) // DEXデータを参照として格納
                 .storeAddress(basket.jettonMasterAddress)
                 .endCell(),
         );
@@ -75,10 +107,10 @@ export function vaultConfigToCell(config: VaultConfig): Cell {
         .storeRef(jettonData)
         .storeBit(true)
         .storeUint(config.baskets.length, 8)
-        .storeAddress(config.dedustTonVaultAddress)
+        .storeAddress(config.dexTonVaultAddress)
         .storeDict(basketsToDict(config.baskets))
         .storeDict(waitingsDict)
-        .storeDict(excessesDict)
+        .storeCoins(0)  // accumulated_gas初期値を0に設定
         .endCell();
 }
 
@@ -151,17 +183,31 @@ export class Vault implements Contract {
         });
     }
 
-    static depositMessage(eachAmount: bigint[]) {
+    static depositMessage(eachAmount: bigint[], requestedMintAmount?: bigint) {
         const builder = beginCell().storeUint(Op.deposit, 32).storeUint(0, 64);
+        
+        // 各バスケットのスワップ量を追加
         for (const amount of eachAmount) {
             builder.storeCoins(amount);
         }
+        
+        // Mint量が指定されている場合は追加
+        if (requestedMintAmount !== undefined) {
+            builder.storeCoins(requestedMintAmount);
+        }
+        
         return builder.endCell();
     }
-    async sendDeposit(provider: ContractProvider, via: Sender, eachAmount: bigint[], value: bigint = toNano('0.05')) {
+    async sendDeposit(
+        provider: ContractProvider, 
+        via: Sender, 
+        eachAmount: bigint[], 
+        value: bigint = toNano('0.05'),
+        requestedMintAmount?: bigint
+    ) {
         await provider.internal(via, {
             sendMode: SendMode.PAY_GAS_SEPARATELY,
-            body: Vault.depositMessage(eachAmount),
+            body: Vault.depositMessage(eachAmount, requestedMintAmount),
             value,
         });
     }
@@ -248,27 +294,40 @@ export class Vault implements Contract {
         });
     }
 
-    static changeVaultDataMessage(stopped: boolean, dedustTonVaultAddress: Address, baskets: Basket[]) {
+    static changeVaultDataMessage(
+        stopped: boolean, 
+        dexTonVaultAddress: Address, 
+        baskets: Basket[],
+        waitingsDict: Dictionary<bigint, Dictionary<number, Cell>> = Dictionary.empty(
+            Dictionary.Keys.BigUint(256),
+            Dictionary.Values.Dictionary(Dictionary.Keys.Uint(8), Dictionary.Values.Cell()),
+        ),
+        dict_query_excess_gas: Cell = beginCell().storeDict(Dictionary.empty()).endCell()
+    ) {
         return beginCell()
             .storeUint(Op.change_vault_data, 32)
             .storeUint(0, 64)
             .storeBit(stopped)
             .storeUint(baskets.length, 8)
-            .storeAddress(dedustTonVaultAddress)
+            .storeAddress(dexTonVaultAddress)
             .storeDict(basketsToDict(baskets))
+            .storeDict(waitingsDict)
+            .storeRef(dict_query_excess_gas)
             .endCell();
     }
     async sendChangeVaultData(
         provider: ContractProvider,
         via: Sender,
         stopped: boolean,
-        dedustTonVaultAddress: Address,
+        dexTonVaultAddress: Address,
         baskets: Basket[],
+        waitingsDict?: Dictionary<bigint, Dictionary<number, Cell>>,
+        dict_query_excess_gas?: Cell,
         value: bigint = toNano('0.05'),
     ) {
         await provider.internal(via, {
             sendMode: SendMode.PAY_GAS_SEPARATELY,
-            body: Vault.changeVaultDataMessage(stopped, dedustTonVaultAddress, baskets),
+            body: Vault.changeVaultDataMessage(stopped, dexTonVaultAddress, baskets, waitingsDict, dict_query_excess_gas),
             value,
         });
     }
@@ -356,31 +415,208 @@ export class Vault implements Contract {
     }
 
     async getVaultData(provider: ContractProvider) {
-        const res = await provider.get('get_vault_data', []);
-        const stopped = res.stack.readBoolean();
-        const numBaskets = res.stack.readNumber();
-        const dedustTonVaultAddress = res.stack.readAddress();
-        const basketsCell = res.stack.readCell();
-        const basketsDict = Dictionary.loadDirect(Dictionary.Keys.Uint(8), Dictionary.Values.Cell(), basketsCell);
-        const baskets = [];
-        for (const value of basketsDict.values()) {
-            const slice = value.beginParse();
-            const weight = slice.loadCoins();
-            const jettonWalletAddress = slice.loadAddress();
-            const dedust = slice.loadRef();
-            const dedustSlice = dedust.beginParse();
-            const dedustPoolAddress = dedustSlice.loadAddress();
-            const dedustJettonVaultAddress = dedustSlice.loadAddress();
-            const jettonMasterAddress = slice.loadAddress();
-            baskets.push({
-                weight,
-                jettonWalletAddress,
-                dedustPoolAddress,
-                dedustJettonVaultAddress,
-                jettonMasterAddress,
-            });
+        try {
+            const res = await provider.get('get_vault_data', []);
+            const stopped = res.stack.readBoolean();
+            const numBaskets = res.stack.readNumber();
+            const dexTonVaultAddress = res.stack.readAddress();
+            
+            // バスケットセルの読み込み - エラーハンドリング強化
+            let basketsCell;
+            try {
+                basketsCell = res.stack.readCell();
+            } catch (e) {
+                console.log('バスケットセルの読み込みエラー。空の辞書を使用します。', e);
+                basketsCell = beginCell().storeDict(Dictionary.empty()).endCell();
+            }
+            
+            // dict_waitingsセルの読み込み - エラーハンドリング強化
+            let waitingsCell;
+            try {
+                waitingsCell = res.stack.readCell();
+            } catch (e) {
+                console.log('waitingsセルの読み込みエラー。空の辞書を使用します。', e);
+                waitingsCell = beginCell().storeDict(Dictionary.empty()).endCell();
+            }
+            
+            // dict_query_excess_gasの読み込み - エラーハンドリング強化
+            let dict_query_excess_gas;
+            try {
+                // スタックにまだデータが残っているか確認
+                dict_query_excess_gas = res.stack.readCell();
+            } catch (e) {
+                // スタックが空の場合はデフォルト値を使用
+                console.log('dict_query_excess_gasの読み込みエラー。空の辞書を使用します。', e);
+                dict_query_excess_gas = beginCell().storeDict(Dictionary.empty()).endCell();
+            }
+            
+            // 各辞書のロード - エラーハンドリング強化
+            let basketsDict;
+            try {
+                basketsDict = Dictionary.loadDirect(Dictionary.Keys.Uint(8), Dictionary.Values.Cell(), basketsCell);
+            } catch (e) {
+                console.log('バスケット辞書のロードエラー。空の辞書を使用します。', e);
+                basketsDict = Dictionary.empty(Dictionary.Keys.Uint(8), Dictionary.Values.Cell());
+            }
+            
+            let dict_waitings;
+            try {
+                dict_waitings = Dictionary.loadDirect(
+                    Dictionary.Keys.BigUint(256),
+                    Dictionary.Values.Dictionary(Dictionary.Keys.Uint(8), Dictionary.Values.Cell()),
+                    waitingsCell
+                );
+            } catch (e) {
+                console.log('waitings辞書のロードエラー。空の辞書を使用します。', e);
+                dict_waitings = Dictionary.empty(
+                    Dictionary.Keys.BigUint(256),
+                    Dictionary.Values.Dictionary(Dictionary.Keys.Uint(8), Dictionary.Values.Cell())
+                );
+            }
+            
+            // バスケット情報の解析
+            const baskets = [];
+            for (const value of basketsDict.values()) {
+                try {
+                    const slice = value.beginParse();
+                    const weight = slice.loadCoins();
+                    const jettonWalletAddress = slice.loadAddress();
+                    const dexData = slice.loadRef();
+                    let dexSlice = dexData.beginParse(); // letで宣言して再代入可能にする
+                    
+                    // DEXタイプ情報を読み込む
+                    let dexType;
+                    try {
+                        // DEXタイプを2ビットで読み込む
+                        dexType = dexSlice.loadUint(2);
+                    } catch (e) {
+                        // 古いフォーマットの場合はデフォルトでDeDust
+                        console.log('DEXタイプ情報が見つかりません。デフォルトでDeDustを使用します。', e);
+                        dexType = 0; // DeDust
+                        
+                        // スライスをリセットして再読み込み
+                        dexSlice = dexData.beginParse();
+                    }
+                    
+                    // DEXタイプに応じて異なるフィールドを読み込む
+                    let dexPoolAddress;
+                    let dexJettonVaultAddress;
+                    let dexRouterAddress;
+                    let dexProxyTonAddress;
+                    let dexJettonWalletOnRouterAddress;
+                    
+                    // デバッグ情報を追加
+                    console.log(`バスケットデータ解析: DEXタイプ=${dexType} (${dexType === 0 ? 'DeDust' : dexType === 1 ? 'StonFi' : '不明'})`);                    
+                    
+                    try {
+                        // デバッグ用にスライスの内容をコピー
+                        const debugSlice = dexSlice.clone();
+                        console.log(`dexSliceのビット数: ${debugSlice.remainingBits}`);
+                        
+                        if (dexType === 0) { // DeDust
+                            dexPoolAddress = dexSlice.loadAddress();
+                            console.log(`DeDustプールアドレス: ${dexPoolAddress}`);
+                            dexJettonVaultAddress = dexSlice.loadAddress();
+                            console.log(`DeDust Jetton Vaultアドレス: ${dexJettonVaultAddress}`);
+                            // StonFi用のフィールドはnullに設定
+                            dexRouterAddress = null;
+                            dexProxyTonAddress = null;
+                        } else if (dexType === 1) { // StonFi
+                            try {
+                                // StonFiの場合、コントラクトのストレージ構造に合わせて読み込む
+                                // まずdexPoolAddressの位置からdexRouterAddressを読み込む
+                                dexRouterAddress = dexSlice.loadAddress();
+                                console.log(`StonFiルーターアドレス: ${dexRouterAddress}`);
+                                
+                                // 次にdexJettonVaultAddressの位置からdexProxyTonAddressを読み込む
+                                if (dexSlice.remainingBits >= 267) { // アドレスに必要なビット数
+                                    dexProxyTonAddress = dexSlice.loadAddress();
+                                    console.log(`StonFiプロキシTONアドレス: ${dexProxyTonAddress}`);
+                                    
+                                    // dexJettonWalletOnRouterAddressを読み込む
+                                    if (dexSlice.remainingBits >= 267) { // アドレスに必要なビット数
+                                        dexJettonWalletOnRouterAddress = dexSlice.loadAddress();
+                                        console.log(`StonFiルーター上のJettonウォレットアドレス: ${dexJettonWalletOnRouterAddress}`);
+                                    } else {
+                                        console.log('StonFiルーター上のJettonウォレットアドレスが見つかりません');
+                                        dexJettonWalletOnRouterAddress = null;
+                                    }
+                                } else {
+                                    console.log('StonFiプロキシTONアドレスが見つかりません');
+                                    dexProxyTonAddress = null;
+                                    dexJettonWalletOnRouterAddress = null;
+                                }
+                            } catch (e) {
+                                console.error('StonFiアドレスの読み込みエラー:', e);
+                                dexRouterAddress = null;
+                                dexProxyTonAddress = null;
+                            }
+                            
+                            // StonFiではプールアドレスとJettonVaultアドレスは使用しない
+                            // しかし、ストレージ構造の互換性のために、dexRouterAddressとdexProxyTonAddressを
+                            // dexPoolAddressとdexJettonVaultAddressとしても設定する
+                            dexPoolAddress = dexRouterAddress;
+                            dexJettonVaultAddress = dexProxyTonAddress;
+                        } else {
+                            // 不明なDEXタイプの場合はデフォルト値を設定
+                            console.log(`不明なDEXタイプ: ${dexType}`);
+                            dexPoolAddress = dexSlice.loadAddress();
+                            dexJettonVaultAddress = dexSlice.loadAddress();
+                        }
+                    } catch (e) {
+                        console.error('バスケットデータ解析エラー:', e);
+                        dexPoolAddress = null;
+                        dexJettonVaultAddress = null;
+                        dexRouterAddress = null;
+                        dexProxyTonAddress = null;
+                    }
+                    
+                    const jettonMasterAddress = slice.loadAddress();
+                    
+                    // 新しいフィールド名を使用してバスケットを作成
+                    const basketData: any = {
+                        weight,
+                        jettonWalletAddress,
+                        jettonMasterAddress,
+                        dexType, // DEXタイプ情報を追加
+                    };
+                    
+                    // DEXタイプに応じて適切なフィールドを設定
+                    if (dexType === 0) { // DeDust
+                        basketData.dexPoolAddress = dexPoolAddress;
+                        basketData.dexJettonVaultAddress = dexJettonVaultAddress;
+                        basketData.dexRouterAddress = null;
+                        basketData.dexProxyTonAddress = null;
+                        basketData.dexJettonWalletOnRouterAddress = null;
+                    } else if (dexType === 1) { // StonFi
+                        // StonFiの場合、dexPoolAddressとdexJettonVaultAddressの位置に
+                        // dexRouterAddressとdexProxyTonAddressが格納されている可能性がある
+                        basketData.dexRouterAddress = dexRouterAddress;
+                        basketData.dexProxyTonAddress = dexProxyTonAddress;
+                        basketData.dexJettonWalletOnRouterAddress = dexJettonWalletOnRouterAddress;
+                        basketData.dexPoolAddress = null;
+                        basketData.dexJettonVaultAddress = null;
+                    } else {
+                        // 不明なDEXタイプの場合はすべてのフィールドを設定
+                        basketData.dexPoolAddress = dexPoolAddress;
+                        basketData.dexJettonVaultAddress = dexJettonVaultAddress;
+                        basketData.dexRouterAddress = null;
+                        basketData.dexProxyTonAddress = null;
+                        basketData.dexJettonWalletOnRouterAddress = null;
+                    }
+                    
+
+                    baskets.push(basketData);
+                } catch (e) {
+                    console.log('バスケット項目の解析エラー。この項目はスキップします。', e);
+                }
+            }
+            
+            return { stopped, numBaskets, dexTonVaultAddress, baskets, dict_waitings, dict_query_excess_gas };
+        } catch (error) {
+            console.error('Error in getVaultData:', error);
+            throw error;
         }
-        return { stopped, numBaskets, dedustTonVaultAddress, baskets };
     }
 
     async getWaitings(provider: ContractProvider): Promise<Waiting[]> {
@@ -420,5 +656,40 @@ export class Vault implements Contract {
             excesses.push({ queryId: key, address: excessesDict.get(key)! });
         }
         return excesses;
+    }
+
+    // Get activities with timestamps - for v3 implementation
+    async getActivities(provider: ContractProvider): Promise<{ queryId: bigint; timestamp: number; userAddress: Address; elapsed: number }[]> {
+        const res = await provider.get('get_excesses', []);
+        const activitiesCell = res.stack.readCellOpt();
+        if (!activitiesCell) {
+            return [];
+        }
+        
+        // Load dictionary with 64-bit keys and cell values
+        const activitiesDict = Dictionary.loadDirect(
+            Dictionary.Keys.BigUint(64),
+            Dictionary.Values.Cell(),
+            activitiesCell,
+        );
+        
+        const activities = [];
+        const currentTime = Math.floor(Date.now() / 1000); // 現在のUNIXタイムスタンプ（秒）
+        
+        // Use keys() and get() instead of entries() which may not exist on this Dictionary type
+        for (const queryId of activitiesDict.keys()) {
+            const activityCell = activitiesDict.get(queryId);
+            if (activityCell) {
+                // Parse activity cell - it contains timestamp (32 bits) and user address
+                const slice = activityCell.beginParse();
+                const timestamp = slice.loadUint(32);
+                const userAddress = slice.loadAddress();
+                const elapsed = currentTime - timestamp; // 経過時間（秒）
+                
+                activities.push({ queryId, timestamp, userAddress, elapsed });
+            }
+        }
+        
+        return activities;
     }
 }
